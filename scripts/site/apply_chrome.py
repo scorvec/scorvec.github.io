@@ -269,15 +269,6 @@ PRODUCTS = [
                         "Daily",
                         "NOAA's extended ensemble",
                     ),
-                    # the GEPS/GEFS layout for NOAA's SFS beta2; its daily products are gated on a data check (NOAA's
-                    # beta2 daily forecast store was defective in its first two issues)
-                    (
-                        "/sfs-subseasonal.html",
-                        "SFS, to six weeks",
-                        "NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.",
-                        "Monthly",
-                        "NOAA's experimental new system",
-                    ),
                 ],
             ),
             (
@@ -291,13 +282,13 @@ PRODUCTS = [
                         "Monthly, on the 15th",
                         "The month and three seasons ahead",
                     ),
-                    # the C3S systems with the NOAA SFS page folded in
+                    # the C3S systems, SEAS5 member by member and CanSIPS
                     (
                         "/seasonal.html",
                         "Seasonal model forecasts",
-                        "Seven C3S systems from six centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, impacts; its stratosphere is on the stratosphere page) and the 31-member SFS plumes and monthly maps.",
+                        "Seven C3S systems from six centres plus Canada's CanSIPS: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, impacts; its stratosphere is on the stratosphere page) and CanSIPS to twelve months.",
                         "Monthly",
-                        "Seven C3S systems and NOAA's SFS",
+                        "Seven C3S systems and CanSIPS",
                     ),
                     (
                         "/enso-forecasts.html",
@@ -484,7 +475,7 @@ PAGES = [
     ),
     dict(
         path="seasonal.html", mode="after-body", tabs="enso"
-    ),  # seasonal model forecasts: C3S + SEAS5 (was seas5.html) + NOAA SFS (was sfs.html)
+    ),  # seasonal model forecasts: C3S + SEAS5 (was seas5.html) + CanSIPS
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="stratosphere.html", mode="after-body", tabs="enso"),  # every stratosphere product
@@ -494,7 +485,6 @@ PAGES = [
         path="subseasonal.html", mode="site-header", fixes=[]
     ),  # styled by /assets/outlook.css; no padding patches needed
     dict(path="gefs.html", mode="site-header"),  # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
-    dict(path="sfs-subseasonal.html", mode="site-header"),  # SFS beta2 page (scripts/sfs/sfs_sub.py), GEFS layout
     dict(path="monthly-outlook.html", mode="site-header"),  # Claude's long-range forecast (scripts/monthly)
     # subseasonal-method.html: retired, now a redirect stub to guides/subseasonal.html (no chrome)
     dict(path="mjo.html", mode="nav"),
@@ -505,7 +495,7 @@ PAGES = [
     dict(
         path="recon.html", mode="after-body"
     ),  # Atlantic recon plotter (scripts/recon, recon.yml -> recon-data branch)
-    # sfs.html: folded into seasonal.html, now a redirect stub (no chrome)
+    # sfs.html, sfs-subseasonal.html: NOAA SFS retired 2026-11-26 (model not ready), redirect stubs (no chrome)
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),  # short-range model viewer (scripts/models), WebGL
     dict(path="samerica-models.html", mode="after-body"),  # South America viewer (scripts/models/samerica.py), WebGL

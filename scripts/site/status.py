@@ -46,13 +46,7 @@ PRODUCTS = {
     "/subseasonal.html": {"stamp": ("assets/geps/telecon.json", "generated")},
     "/gefs.html": {"stamp": ("assets/gefs/data/gefs.json", "generated")},
     "/enso-forecasts.html": {"stamp": ("assets/sst/data/enso_forecast.json", "generated")},
-    # seasonal.html holds the C3S/SEAS5 and NOAA SFS groups: dated by the newer of the two
-    "/seasonal.html": {
-        "stamps": [
-            ("assets/sst/data/c3s_indices.json", "generated"),
-            ("assets/sfs/data/sfs_indices.json", "generated"),
-        ]
-    },
+    "/seasonal.html": {"stamp": ("assets/sst/data/c3s_indices.json", "generated")},
     "/verification.html": {"stamp": ("assets/verification/scores.json", "generated")},
     # the South America viewer: the newer of its two models' manifests (scripts/models/samerica.py, twice daily each)
     "/samerica-models.html": {

@@ -119,7 +119,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # snapshot + clean resync each attempt (mjo.yml / sfs.yml pattern); merges never rebases
+          # snapshot + clean resync each attempt (the mjo.yml pattern); merges never rebases
           SNAP=$(mktemp -d)
           OUTS="scripts/mjo/data/reference/torque_cmip6_monthly.csv.gz scripts/mjo/data/reference/torque_cmip6_log.json"
           git add -f $OUTS

@@ -81,7 +81,7 @@ GUIDES = [
         name="seasonal forecasts page",
         desc="What each figure of the seasonal forecasts page shows and how it is made: the seven C3S systems' maps, "
         "terciles and indices, SEAS5's ENSO and ocean indices, maps, teleconnections, regimes and impact products, "
-        "NOAA's SFS beta and CanSIPS, and the significance tests behind the shading.",
+        "CanSIPS, and the significance tests behind the shading.",
     ),
     dict(
         slug="subseasonal",
@@ -97,13 +97,6 @@ GUIDES = [
         name="GEFS subseasonal outlook",
         desc="How the GEFS days 1 to 35 outlook is built and where it differs from the GEPS one: the GEFSv12 "
         "reforecast, the drift correction, the MJO, tercile calibration, teleconnections, regimes and scenarios.",
-    ),
-    dict(
-        slug="sfs-subseasonal",
-        page="/sfs-subseasonal.html",
-        name="SFS subseasonal outlook",
-        desc="How the SFS beta2 six-week outlook is built: its own 1991-2020 reforecast, the weekly maps and terciles, "
-        "the daily data check, and how its hindcasts score against GEFS, GEPS and CFSv2.",
     ),
     dict(
         slug="verification",

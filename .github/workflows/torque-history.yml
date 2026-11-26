@@ -230,7 +230,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # snapshot + clean resync each attempt (mjo.yml / sfs.yml pattern); merges never rebases
+          # snapshot + clean resync each attempt (the mjo.yml pattern); merges never rebases
           SNAP=$(mktemp -d)
           OUT=scripts/mjo/data/reference/${{ inputs.out }}
           OUT2="${OUT%.nc}_regions.csv"

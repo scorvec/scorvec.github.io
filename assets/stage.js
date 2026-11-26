@@ -599,7 +599,7 @@
   }
   addEventListener("hashchange", follow);
   addEventListener("popstate", follow);
-  // a page whose products depend on data it loads after the first paint (the SFS page's data check) redraws with this
+  // a page whose products depend on data it loads after the first paint (a new run's key) redraws with this
   S.refresh = function () { closeSheet(); render(); };
   buildRail();
   wireSwipe();

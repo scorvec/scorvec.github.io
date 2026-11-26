@@ -3,7 +3,7 @@
 
 Plate carrée, most of the world, bold title top-left, one-line subtitle, 50 m coastlines, light gridlines with
 labels, a horizontal colour bar below.
-seas5_build._global_map draws exactly this; sfs_maps imports it.
+seas5_build._global_map draws exactly this.
 
     fig, ax, H, pc = open_map(kind="atm")            # global, cut at 40 °E (sst: 20 °E)
     fig, ax, H, pc = open_map(extent=[-180, 180, 20, 90], central=-140)
@@ -157,7 +157,7 @@ def save(fig, out, dpi: int = 125, quality: int = 86, lossless: bool = False):
 
 # ── SST: one anomaly palette and one absolute palette for every SST figure on the site ─────────────────────────────
 # Discrete classes on round, symmetric levels, so a colour means the same number on every product (the daily OISST
-# loops, MUR, the Walker SST panels, SEAS5, SFS) and the colour bar can be read. Values, baselines and methods stay the
+# loops, MUR, the Walker SST panels, SEAS5) and the colour bar can be read. Values, baselines and methods stay the
 # callers' own.
 #
 # Anomaly: a white neutral band +-0.2 °C, 0.2 °C classes to +-3 (the SEAS5 ladder), 0.5 °C to +-5, then 6 and 7 for

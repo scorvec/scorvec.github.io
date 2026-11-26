@@ -9,7 +9,7 @@ significant: Welch t-test of the 40 forecast anomalies against the hindcast's si
 (effective hindcast n = 24 years, conservative), Benjamini-Hochberg FDR q = 0.10 across the cells
 of the map (Wilks 2016). Fields: SST, 2 m T, 850 hPa T, precipitation, MSLP, 500 hPa height, sea-
 surface height, 200 and 850 hPa wind (shading: zonal-wind anomaly; arrows: the vector anomaly where
-either component is significant) -- the SFS group's wind convention on the same page.
+either component is significant).
 
 Probability maps (ECCC's, as published, not recomputed): tercile above/below normal for 2 m T,
 precipitation and snow water equivalent, and the decile tails from the ProbGT10Pct / ProbGT90Pct

@@ -30,7 +30,7 @@ Skill       dotted where the hindcast anomaly correlation for this month and wee
             (gefs_skill.noskill: one-sided 5 % t-test on the 20 reforecast years, Benjamini-Hochberg FDR q 0.10 over
             the map; house.stipple), the probabilities shown everywhere; cross-hatched where there is no gauge truth
             (precipitation over the ocean) or the climatological week is dry (< 0.5 mm/day: the terciles collapse
-            onto zero and mean nothing). A week dict may carry its own "neff" (the SFS page: one start a year).
+            onto zero and mean nothing).
 Display     CPC-style: hue for the most likely tercile, intensity for its probability from 33 % up; precipitation
             brown below / green above.
 
@@ -244,7 +244,7 @@ def _grid(stack, asp, n=5):
     return fig, rects, [0.36, 0.44 / fig_h, 0.28, 0.15 / fig_h], 0.06 / fig_h, 1.0 - 0.18 / fig_h
 
 
-# Label, file prefix and the tercile note: GEFS by default; scripts/sfs/sfs_sub.py sets its own.
+# Label, file prefix and the tercile notes.
 MODEL, PREFIX = "GEFS", "gefs"
 TERC_NOTE = "2016–2025 terciles"
 CAL_NOTE = "calibrated, 2000–2019 hindcast"
@@ -307,7 +307,7 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
                 )
             ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="white", alpha=0.45, zorder=2)
             notruth = wrap(~np.isfinite(wk["r"]) | wk["dry"])
-            skilful = ~wrap(SK.noskill(wk["r"], wk.get("neff", SK.N_EFF))) & ~notruth
+            skilful = ~wrap(SK.noskill(wk["r"], SK.N_EFF)) & ~notruth
             house.stipple(ax, lon_w, LAT, skilful, transform=ccrs.PlateCarree())
             if notruth.any():
                 cs = ax.contourf(
@@ -359,7 +359,7 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
         )
         note = (
             f"{TERC_NOTE} · colour = most likely tercile, intensity = its probability "
-            f"(33% = no signal) · dots = significant skill ({SK.test_note(weeks[0].get('neff', SK.N_EFF))})"
+            f"(33% = no signal) · dots = significant skill ({SK.test_note(SK.N_EFF)})"
             + (" · cross-hatched = no gauge truth / dry week" if tag == "pr" else "")
             + (f" · raw: {100 / n_members:.0f}% steps" if kind == "raw" else " · calibrated: no skill → ⅓ each")
         )

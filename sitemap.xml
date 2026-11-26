@@ -174,11 +174,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://scorvec.com/sfs-subseasonal.html</loc>
-    <lastmod>2026-10-12</lastmod>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://scorvec.com/monthly-outlook.html</loc>
     <lastmod>2026-10-17</lastmod>
     <priority>0.7</priority>
@@ -241,11 +236,6 @@
   </url>
   <url>
     <loc>https://scorvec.com/guides/gefs.html</loc>
-    <lastmod>2026-11-26</lastmod>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://scorvec.com/guides/sfs-subseasonal.html</loc>
     <lastmod>2026-11-26</lastmod>
     <priority>0.6</priority>
   </url>

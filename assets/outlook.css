@@ -1,5 +1,5 @@
-/* outlook.css — the shared look for the outlook pages (SEAS5, SFS, GEPS subseasonal).
-   One stylesheet so the three pages share one styling. Page-specific rules stay inline in
+/* outlook.css — the shared look for the outlook pages (seasonal, GEPS and GEFS subseasonal).
+   One stylesheet so the pages share one styling. Page-specific rules stay inline in
    each page; anything that describes a card, a pill, a chip, a deck or a table lives here.
    The site chrome (header, tabs, footer) is assets/site.css, applied by scripts/site/apply_chrome.py. */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -357,15 +357,6 @@
   }
 
 /* outlook-charts additions */
-/* SFS teleconnection table, styled like the GEPS subseasonal page's table.tele */
-table.tele-sfs { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
-table.tele-sfs th, table.tele-sfs td { padding: 0.35rem 0.4rem; text-align: center; border-bottom: 1px solid var(--rule); }
-table.tele-sfs thead th { font-weight: 600; color: var(--ink); }
-table.tele-sfs tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
-table.tele-sfs th span, table.tele-sfs td span { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); }
-table.tele-sfs td i { font-style: normal; color: #4a4640; }
-table.tele-sfs td.flagged { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; }
-.tele-sfs-cap { font-size: 0.78rem; color: var(--ink2); margin-top: 0.6rem; max-width: 110ch; }
 
 /* ── ENSO strength shading on the official CPC chip ──────────────────────────
    The official number is the one a reader anchors on, so it carries the event's

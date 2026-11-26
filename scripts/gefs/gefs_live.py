@@ -296,8 +296,7 @@ DOMAINS = {
 SCALE_PCT = {"t2m": 99.3, "t850": 99.0, "zg500": 98.0, "mslp": 99.0}
 CONTOUR = {"mslp": (np.arange(880.0, 1084.0, 4.0), 0.6), "zg500": (np.arange(4680.0, 6121.0, 60.0), 0.5)}
 MUTED = "#6f6b64"
-# The model named in titles and file names. GEFS by default; the SFS subseasonal page (scripts/sfs/sfs_sub.py)
-# reuses these figure functions with its own label and prefix.
+# The model named in titles and file names.
 MODEL, PREFIX = "GEFS", "gefs"
 
 
@@ -519,9 +518,7 @@ def weekly_of(a):
 
 # ── daily animation: one frame per forecast day, the GEPS page's render_maps.daily() geometry ──────────────────
 def _frames_job(spec):
-    tag, key, dom, a, fc, base_iso, outdir, *opt = spec
-    model = opt[0] if opt else "GEFS"  # label (the SFS page passes its own)
-    days = opt[1] if len(opt) > 1 else None  # forecast-day numbers of the rows of `a` (default 1..n)
+    tag, key, dom, a, fc, base_iso, outdir = spec
     plt = _plt()
     base = dt.date.fromisoformat(base_iso)
     title, unit, cmap, _demean, scale = FIELDS[tag]
@@ -546,10 +543,9 @@ def _frames_job(spec):
         mesh = _panel(
             ax, lat, R.LON, sub[i], dom, lim, cmap, over=(fsub[i] if fsub is not None else None), clev=clev, clw=clw
         )
-        dn = days[i] if days is not None else i + 1
-        valid = base + dt.timedelta(days=dn - 1)
+        valid = base + dt.timedelta(days=i)
         ax.set_title(
-            f"{dom['label']} — {title} anomaly\n{model} init {base:%b %d} · day {dn}, valid {valid:%a %d %b}",
+            f"{dom['label']} — {title} anomaly\n{MODEL} init {base:%b %d} · day {i + 1}, valid {valid:%a %d %b}",
             fontsize=11,
             fontweight="bold",
             pad=6,
@@ -567,7 +563,7 @@ def _frames_job(spec):
         # loop frames: WebP q65 method 6 (~30-35 % fewer bytes than q82; text, contours and colour bars unchanged at 1x)
         fig.savefig(f, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
         plt.close(fig)
-        frames.append({"idx": i, "file": f.name, "date": valid.isoformat(), "label": f"day {dn} · {valid:%b %d}"})
+        frames.append({"idx": i, "file": f.name, "date": valid.isoformat(), "label": f"day {i + 1} · {valid:%b %d}"})
     return f"{key}_{tag}", title, frames
 
 
@@ -586,11 +582,10 @@ def fetch_features() -> None:
         next(iter(feature.with_scale(scale).geometries()), None)
 
 
-def daily_loops(A, z, base, anim: Path, procs: int, model: str | None = None, prefix: str | None = None, days=None):
+def daily_loops(A, z, base, anim: Path, procs: int):
     """The daily loops of the fields in A, every domain, and each domain's manifest (fields in ANIM_ORDER)."""
     from concurrent.futures import ProcessPoolExecutor
 
-    model, prefix = model or MODEL, prefix or PREFIX
     specs = [
         (
             t,
@@ -600,8 +595,6 @@ def daily_loops(A, z, base, anim: Path, procs: int, model: str | None = None, pr
             (z[f"e_{t}"] if t in CONTOUR else None),
             base.isoformat(),
             str(anim),
-            model,
-            days,
         )
         for k, dom in DOMAINS.items()
         for t in ANIM_ORDER
@@ -613,7 +606,7 @@ def daily_loops(A, z, base, anim: Path, procs: int, model: str | None = None, pr
             regions[rid.split("_")[0]][rid] = {"label": title, "frames": frames}
     for k in DOMAINS:
         ordered = {f"{k}_{t}": regions[k][f"{k}_{t}"] for t in ANIM_ORDER if f"{k}_{t}" in regions[k]}
-        (anim / f"{prefix}_{k}_manifest.json").write_text(
+        (anim / f"{PREFIX}_{k}_manifest.json").write_text(
             json.dumps({"ver": int(time.time()), "selectorLabel": "Field", "regions": ordered, "default": f"{k}_t2m"})
         )
     return sum(len(r["frames"]) for k in regions for r in regions[k].values())

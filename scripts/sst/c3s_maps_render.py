@@ -18,7 +18,7 @@ The multi-model change is the mean over the systems in both issues. Either multi
 quarters of the issue's systems with the field are in it (MMM_QUORUM), so a mean of the first two systems to be tested
 never stands in for it.
 
-Drawn in the shared outlook style (mapstyle.py), so they sit beside the SEAS5 and SFS maps without looking like a
+Drawn in the shared outlook style (mapstyle.py), so they sit beside the SEAS5 maps without looking like a
 different site. Outputs assets/sst/c3s/c3s_{model}_{field}_{period}.webp, c3s_{model}_{field}_chg_{period}.webp and
 assets/sst/data/c3s_maps.json, which names every model, field and period the page can offer.
 
@@ -131,7 +131,7 @@ def draw(v, lat, lon, key: str, title: str, sub: str, out: Path, change: bool = 
     v, lon = add_cyclic_point(v, coord=lon)
     out.parent.mkdir(parents=True, exist_ok=True)
     if key == "sst":
-        # the site's shared SST palette and ladder (white +-0.2, 0.2 degC classes; same colours as SEAS5, SFS and the
+        # the site's shared SST palette and ladder (white +-0.2, 0.2 degC classes; same colours as SEAS5 and the
         # OISST loops) instead of thirds of a degree to +-2, and the shared change ladder for a change. The axes stay
         # white, land in the SST land colour: a blank ocean cell is one without a significant anomaly
         sty = mapstyle.sst_change_style() if change else mapstyle.sst_anom_style(5.0)

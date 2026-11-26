@@ -178,8 +178,7 @@ const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/ss
 // honoured for both, so callers can still point the viewer anywhere.
 const FRAME_ROOT = window.FRAME_ROOT;   // assets/frames_root.js
 // Only the directories the frames publisher actually mirrors live on that branch, and they
-// are all `assets/<product>/anim` or one folder inside it (the SFS subseasonal loops sit in
-// assets/sfs/anim/sub). mjo.html passes base=assets (its frames sit in assets/mjo/ on
+// are all `assets/<product>/anim` or one folder inside it. mjo.html passes base=assets (its frames sit in assets/mjo/ on
 // main) — routing it to the branch 404s every frame. Anything that is not an /anim
 // directory, and any absolute base, is served from where it already lives.
 const ON_FRAMES_BRANCH = ANIM_BASE.indexOf("//") === -1 && /\/anim(\/[\w-]+)?$/.test(ANIM_BASE);

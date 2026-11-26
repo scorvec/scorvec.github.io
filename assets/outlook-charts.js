@@ -1,5 +1,5 @@
 /* outlook-charts.js — one Plotly theme for the outlook pages' time-series charts
-   (seas5.html, sfs.html): short observed history, a y-range fitted to what is shown, and
+   (seasonal.html): short observed history, a y-range fitted to what is shown, and
    lines heavy enough to read.
 
    What it fixes, in one place:

@@ -3,27 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seasonal Model Forecasts — C3S, SEAS5 and NOAA SFS · Shawn Corvec</title>
-<meta name="description" content="Seasonal model forecasts: anomaly maps and tercile odds from seven C3S systems and their mean, member-level ECMWF SEAS5 outlooks, and NOAA's SFS beta.">
-<meta name="keywords" content="seasonal forecast, seasonal model forecasts, C3S, ECMWF SEAS5, multi-model seasonal ensemble, tercile probabilities, NOAA SFS, SFS model, Seasonal Forecast System, CFSv2 successor, ENSO forecast, Nino 3.4">
+<title>Seasonal Model Forecasts — C3S, SEAS5 and CanSIPS · Shawn Corvec</title>
+<meta name="description" content="Seasonal model forecasts: anomaly maps and tercile odds from seven C3S systems and their mean, member-level ECMWF SEAS5 outlooks, and ECCC's CanSIPS.">
+<meta name="keywords" content="seasonal forecast, seasonal model forecasts, C3S, ECMWF SEAS5, multi-model seasonal ensemble, tercile probabilities, CFSv2 successor, ENSO forecast, Nino 3.4">
 <link rel="canonical" href="https://scorvec.com/seasonal.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Seasonal model forecasts">
-<meta property="og:description" content="Seven C3S seasonal systems from six centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their multi-model mean, the member-level ECMWF SEAS5 outlook, and SFS plumes and monthly maps.">
+<meta property="og:description" content="Seven C3S seasonal systems from six centres plus ECCC's CanSIPS: anomaly maps and tercile probabilities for every C3S model and their multi-model mean, the member-level ECMWF SEAS5 outlook and CanSIPS to twelve months.">
 <meta property="og:url" content="https://scorvec.com/seasonal.html">
 <meta property="og:image" content="https://scorvec.com/assets/sst/c3s/c3s_mmm_t2m_s1.webp">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Seasonal model forecasts">
-<meta name="twitter:description" content="Seven C3S seasonal systems from six centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their multi-model mean, the member-level ECMWF SEAS5 outlook, and SFS plumes and monthly maps.">
+<meta name="twitter:description" content="Seven C3S seasonal systems from six centres plus ECCC's CanSIPS: anomaly maps and tercile probabilities for every C3S model and their multi-model mean, the member-level ECMWF SEAS5 outlook and CanSIPS to twelve months.">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "WebPage",
  "name": "Seasonal model forecasts",
  "url": "https://scorvec.com/seasonal.html",
- "description": "Seasonal model forecasts: anomaly maps and tercile odds from seven C3S systems and their mean, member-level ECMWF SEAS5 outlooks, and NOAA's SFS beta.",
+ "description": "Seasonal model forecasts: anomaly maps and tercile odds from seven C3S systems and their mean, member-level ECMWF SEAS5 outlooks, and ECCC's CanSIPS.",
  "image": "https://scorvec.com/assets/sst/c3s/c3s_mmm_t2m_s1.webp",
  "isPartOf": {
   "@type": "WebSite",
@@ -39,7 +39,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=52fec7b83b">
-<link rel="stylesheet" href="/assets/outlook.css?v=5cbd19a331">
+<link rel="stylesheet" href="/assets/outlook.css?v=0730631eb4">
 <link rel="stylesheet" href="/assets/stage.css?v=de5bbf8c90">
 <script>
 // SEAS5 stratosphere cards moved to the stratosphere page (2026-10-08): forward old deep links before the stage reads the hash
@@ -59,9 +59,9 @@
   .xd-city:hover .dot, .xd-city.on .dot { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); transform: scale(1.25); }
   .xd-city .nm { position: absolute; top: 50%; transform: translateY(-50%); font: 600 0.8rem var(--sans); color: var(--accent); white-space: nowrap; pointer-events: none;
                  background: rgba(255,255,255,0.92); padding: 0.05rem 0.3rem; border-radius: 3px; display: none; }
-  /* NOAA SFS group (moved from sfs.html 2026-10-06) */
-  .sfs-block .plot { margin-bottom: 0.4rem; }
-  .sfs-block .chips { margin: 0 0 0.8rem; }
+  /* mounted plume blocks (CanSIPS) */
+  .plume-block .plot { margin-bottom: 0.4rem; }
+  .plume-block .chips { margin: 0 0 0.8rem; }
   .xd-city.r .nm { left: 100%; } .xd-city.l .nm { right: 100%; }
   #xdCity { min-height: 0; }
   @media (max-width: 700px) {
@@ -181,7 +181,6 @@
                 <ul>
                   <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
                   <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
-                  <li><a href="/sfs-subseasonal.html"><span class="sh-t">SFS, to six weeks</span><span class="sh-d">NOAA's experimental new system</span></a></li>
                 </ul>
               </div>
             </div>
@@ -190,7 +189,7 @@
                 <h3>Months and seasons</h3>
                 <ul>
                   <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
-                  <li><a href="/seasonal.html" aria-current="page"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and NOAA's SFS</span></a></li>
+                  <li><a href="/seasonal.html" aria-current="page"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and CanSIPS</span></a></li>
                   <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
                 </ul>
               </div>
@@ -265,13 +264,13 @@ window.afterPlotly = function (fn) {
   return function () { var self = this, args = arguments, run = function () { fn.apply(self, args); }; window.plotlyP.then(run, run); };
 };
 </script>
-<script src="/assets/outlook-charts.js?v=3bdf352ba7"></script>
+<script src="/assets/outlook-charts.js?v=b4e2b5bdc2"></script>
 <script src="/assets/seas5-cards.js?v=f53af35462"></script>
 <main id="main">
   <header>
-    <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, the NOAA SFS beta and ECCC CanSIPS, <span id="issueLabel">latest issue</span></div>
+    <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble and ECCC CanSIPS, <span id="issueLabel">latest issue</span></div>
     <h1>Seasonal model forecasts</h1>
-    <p class="sub">Seven C3S systems, NOAA&rsquo;s SFS beta and Canada&rsquo;s CanSIPS, each read against its own hindcast.</p>
+    <p class="sub">Seven C3S systems and Canada&rsquo;s CanSIPS, each read against its own hindcast.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -466,36 +465,10 @@ window.afterPlotly = function (fn) {
     <p class="note" id="rgTests"></p>
     <div class="chart-card-footer"><span class="chart-updated" id="rgUpdated">&mdash;</span></div>
   </div>
-  <!-- NOAA SFS beta (moved from sfs.html 2026-10-06): mounted blocks for the sfs-plume / sfs-indices products. The maps
-       product is a loop.html frame (assets/sfs/anim), created only when it is on stage. The data loads on the first
-       visit to the group (STAGE.onRender), not with the page. -->
-  <div id="dom-sfs-plume" class="sfs-block" hidden>
-    <div class="chips" id="sfsChips">
-      <div class="chip"><div class="l">NOAA SFS beta</div><div class="v neut">&mdash;</div><div class="s">loading the feed&hellip;</div></div>
-    </div>
-    <p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (monthly Ni&ntilde;o-3.4, the NOAA ERSSTv6 box mean, or CPC&rsquo;s 3-month RONI; dashed = the site&rsquo;s OISST v2.1 estimate for months not yet in those records), blue dashes = the C3S multi-model mean for the same issue.</p>
-    <div class="controls">
-      <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
-      <button class="pill" data-idx="roni">RONI</button>
-      <span class="ctlsep">&middot;</span>
-      <button class="pill on" data-sm="0">Monthly</button>
-      <button class="pill" data-sm="1">3-month (ONI convention)</button>
-      <span class="ctlsep">&middot;</span>
-      <button class="pill" data-mem="1" id="sfsMemPill">Show all members</button>
-    </div>
-    <div id="sfsPlumeChart" class="plot" style="height:480px"></div>
-    <div class="chart-card-footer"><span class="chart-updated" id="sfsPlumeUpdated">&mdash;</span></div>
-  </div>
-  <div id="dom-sfs-indices" class="sfs-block" hidden>
-    <p class="note">IOD, South Atlantic dipole, the Ni&ntilde;o flavours and a reforecast-EOF PDO, per member, in &sigma;. Fan and mean as on the plume.</p>
-    <div class="controls" id="sfsIdxPills"></div>
-    <div id="sfsIdxChart" class="plot" style="height:460px"></div>
-    <div class="chart-card-footer"><span class="chart-updated" id="sfsIdxUpdated">&mdash;</span></div>
-  </div>
   <!-- CanSIPS straight from ECCC's MSC Datamart, 12 months (2026-10-07): one fetcher, scripts/sst/cansips_dd.py, for this
        group and the ENSO forecasts page. The maps are loop.html frames (assets/cansips/anim) created only on stage; the plume
        feed loads on the group's first visit (STAGE.onRender -> CSP.start). -->
-  <div id="dom-cs-plume" class="sfs-block" hidden>
+  <div id="dom-cs-plume" class="plume-block" hidden>
     <div class="chips" id="csChips">
       <div class="chip"><div class="l">CanSIPS (ECCC)</div><div class="v neut">&mdash;</div><div class="s">loading the feed&hellip;</div></div>
     </div>
@@ -570,17 +543,6 @@ window.afterPlotly = function (fn) {
 <template id="about-cansips"><p class="chart-sources">ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada &middot; built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml) &middot; CanSIPS from the ECCC MSC Datamart (WaterTemp, 1&deg;, ocean cells only)
       &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W) &middot; anomalies vs its own 1993&ndash;2016 hindcast per start month &amp; lead
       &middot; Data Source: Environment and Climate Change Canada</p></template>
-<template id="about-sfs"><p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py &middot; NOAA SFS beta2, experimental (NODD zarr, ocn_monthly)
-      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
-      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
-      &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
-      &middot; observed: NOAA ERSSTv6 Ni&ntilde;o-3.4 box mean on 1991&ndash;2020 and CPC&rsquo;s ERSSTv6 RONI, then the site&rsquo;s OISST v2.1 estimate &middot; SFS beta ocn_monthly zarr, 31 members &middot;
-      anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot;
-      PDO pattern: EOF1 of reforecast North Pacific SSTA (20&ndash;70&deg;N,
-      110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</p></template>
-<template id="about-sfs-skill"><p class="chart-sources">SFS beta2 reforecast (NOAA/OAR, NODD) &middot; CFSv2 via the NMME archive (IRI Data Library) &middot; ERA5 (Copernicus C3S) &middot; OISST v2.1 (NOAA NCEI) &middot; built by scripts/sfs/sfs_cfsfig.py from scripts/sfs/skill/cfs/</p></template>
-<template id="about-sfs-maps"><p class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads &middot; <span class="chart-updated" id="sfsMonthlyUpdated">&mdash;</span></p>
-<p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p></template>
 
   <div class="colophon">
     <h3>Data and licences</h3>
@@ -588,8 +550,6 @@ window.afterPlotly = function (fn) {
     Data Store; the daily copy of the SEAS5 hindcast on AWS (Planette, Copernicus licence). Observations: ERA5
     (Copernicus C3S); NOAA ERSSTv6, OISST v2.1 and CPC&rsquo;s RONI; NOAA CPC Global Unified temperature and NCEP/NCAR
     Reanalysis 1 (via NOAA PSL). Population weights: GeoNames (CC BY 4.0).</p>
-    <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay on the SFS plume: Copernicus Climate Change
-    Service &middot; observed indices: NOAA ERSSTv6 box means, NOAA CPC RONI (ERSSTv6) and, for the months not yet in those, NOAA OISST v2.1.</p>
     <p>CanSIPS: Data Source: Environment and Climate Change Canada (ECCC Data Servers End-use Licence), from the MSC
     Datamart.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
@@ -597,7 +557,7 @@ window.afterPlotly = function (fn) {
 <script>
 window.STAGE = {
   guide: "/guides/seasonal.html",
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Bias-corrected terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"], ["sfs-skill", "Hindcast skill", "against CFSv2"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Bias-corrected terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}],
   products: {
     "c3sMapCard": { about: "about-c3sMapCard", label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { about: "about-c3sTercCard", label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -617,23 +577,6 @@ window.STAGE = {
     "snowCard": { about: "about-snowCard", label: "Snowfall", gated: true, dom: function () { return "snowCard"; } },
     "normCard": { about: "about-normCard", label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
     "regimeCard": { about: "about-regimeCard", label: "Weather regimes", gated: true, dom: function () { return "regimeCard"; } },
-    "sfs-plume": { label: "SFS Niño-3.4 — all 31 members", dom: function () { return "dom-sfs-plume"; }, about: "about-sfs",
-                   cap: function () { return ""; } },
-    "sfs-indices": { label: "SFS derived climate indices — member spread", dom: function () { return "dom-sfs-indices"; }, about: "about-sfs",
-                     cap: function () { return ""; } },
-    "sfs-maps": { label: "SFS monthly anomaly maps",
-                  a: { label: "Field", items: [["sfs_sst", "SST"], ["sfs_t2m", "2 m temperature"], ["sfs_precip", "Precipitation"], ["sfs_z500", "500 hPa height"], ["sfs_mslp", "MSLP"], ["sfs_wind850", "850 hPa wind"], ["sfs_wind200", "200 hPa wind"], ["sfs_chi200", "200 hPa χ"]] },
-                  frame: function (a) { return "loop.html?base=assets/sfs/anim&manifest=" + a + "_manifest.json&region=" + a + "&autoplay=0"; },
-                  ratio: function () { return "1440/860"; },
-                  cap: function (a) { return "NOAA SFS beta against its own 1991–2020 reforecast, one frame per month."; },
-                  about: "about-sfs-maps" },
-    "sfs-skill": { label: "SFS against CFSv2 — hindcast skill", fit: false,
-                   a: { label: "Show", items: [["nino34", "Niño-3.4 by month"], ["fields", "3-month temperature and precipitation"]] },
-                   img: function (a) { return a === "fields" ? "assets/sfs/sfs_cfs_seasonal_skill.webp" : "assets/sfs/sfs_cfs_nino34_skill.webp"; },
-                   cap: function (a) { return a === "fields"
-                     ? /*sfs-verdict:cfs_seasonal*/"SFS beta2 against CFSv2, the system it is meant to replace, for the 3-month mean after each start, 1991\u20132025, verified against ERA5 (Sep \u2192 OND: started 1 September, scored over October\u2013December). As forecast, SFS's anomaly correlation is significantly higher for temperature globally (Sep \u2192 OND), temperature over 20\u201390\u00b0N (Sep \u2192 OND), temperature over US land (Sep \u2192 OND), temperature globally (Sep \u2192 NDJ), temperature over 20\u201390\u00b0N (Sep \u2192 NDJ), temperature globally (Oct \u2192 NDJ), temperature over 20\u201390\u00b0N (Oct \u2192 NDJ), temperature globally (Oct \u2192 DJF), temperature over 20\u201390\u00b0N (Oct \u2192 DJF), precipitation over 20\u201390\u00b0N (Oct \u2192 DJF) and precipitation over US land (Oct \u2192 DJF). With each series' trend removed, SFS's anomaly correlation is significantly higher for temperature globally (Sep \u2192 OND), temperature over US land (Sep \u2192 OND), temperature globally (Sep \u2192 NDJ), temperature over 20\u201390\u00b0N (Sep \u2192 NDJ), precipitation over 20\u201390\u00b0N (Oct \u2192 DJF) and precipitation over US land (Oct \u2192 DJF). (Significant means p < 0.05 and a false discovery rate of 10% over the figure's 40 comparisons.) Only September and October starts exist for SFS beta2."/*end*/
-                     : /*sfs-verdict:cfs_nino34*/"SFS beta2 against CFSv2 for Ni\u00f1o-3.4, monthly means 1991\u20132025 against OISST, CFSv2 with CPC\u2019s separate climatologies before and after 1999. From 1 October starts SFS is significantly better in Nov, Dec and Jan (correlation) and Nov, Dec and Jan (RMSE). From 1 September starts SFS is significantly better in Sep (correlation). (Significant means p < 0.05 and a false discovery rate of 10% over the figure's 36 comparisons.)"/*end*/; },
-                   about: "about-sfs-skill" },
     "cs-plume": { label: "CanSIPS Niño-3.4 — 40 members, 12 months", dom: function () { return "dom-cs-plume"; }, about: "about-cansips",
                   cap: function () { return ""; } },
     "cs-maps": { label: "CanSIPS anomaly maps",
@@ -659,10 +602,8 @@ window.STAGE = {
                   about: "about-cansips" }
   }
 };
-// the SFS group's data loads on its first visit (window.SFS.start, defined further down), not with the page
-window.STAGE.aliases = { "sfs": "sfs-plume", "aboutCard": "/guides/seasonal.html" };
+window.STAGE.aliases = { "aboutCard": "/guides/seasonal.html" };
 window.STAGE.onRender = function (sel) {
-  if (sel.p.indexOf("sfs-") === 0 && window.SFS) window.SFS.start(sel.p);
   if (sel.p === "cs-plume" && window.CSP) window.CSP.start();
 };
 </script>
@@ -731,12 +672,12 @@ afterPlotly(function () {
   function fmt(v, d) { return v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
   function meta(key) { for (var i = 0; i < J.index_meta.length; i++) if (J.index_meta[i].key === key) return J.index_meta[i]; return {label: key, units: "", note: ""}; }
 
-  // Chart chrome lives in /assets/outlook-charts.js (shared with the SFS group below, 2026-09-07): the x-range shows at
+  // Chart chrome lives in /assets/outlook-charts.js (shared with the CanSIPS group below): the x-range shows at
   // most six months of observed history, the y-range fits the visible data, members are drawn at a
   // legible weight, the legend sits above the plot and the current mean / last observation carry end labels.
 
   // 3-month running mean: bridged with the last two observed months where an observed series exists
-  // (so the smoothed fan starts at the first forecast month, as on the SFS page), else the first two
+  // (so the smoothed fan starts at the first forecast month), else the first two
   // months are undefined.
   function smoother(entry, key) {
     if (!state.sm) return function (a) { return a; };
@@ -1704,184 +1645,6 @@ afterPlotly(function () {
 </script>
 
 <script>
-/* NOAA SFS beta group (moved from sfs.html 2026-10-06). Everything is scoped to the two SFS blocks: the SEAS5 card
-   above has its own data-sm pills. The feeds load on the group's first visit (STAGE.onRender -> SFS.start). */
-(function () {
-  "use strict";
-  var OC = window.OutlookCharts;
-  var $ = function (id) { return document.getElementById(id); };
-  var PL = $("dom-sfs-plume"), IX = $("dom-sfs-indices");
-  if (!OC || !PL || !IX) return;
-  var state = { idx: "n34", smooth: false, members: false, sfs: null, c3s: null, hist: null };
-  var built = "";
-
-  function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
-  function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
-  function pct(sorted, p) {
-    var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
-  }
-  function roll3(arr) {
-    return arr.map(function (_, i) {
-      var w = arr.slice(Math.max(0, i - 1), Math.min(arr.length, i + 2)).filter(isFinite);
-      return w.length ? w.reduce(function (a, b) { return a + b; }) / w.length : NaN;
-    });
-  }
-  function md(ym) { return OC.monthDate(ym); }
-  function stampMaps() { var el = $("sfsMonthlyUpdated"); if (el && built) el.textContent = built; }
-
-  function draw() {
-    var S = state.sfs;
-    var valid = S.valid_months;
-    var useR = state.idx === "roni" && S.members_rnino;
-    var members = useR ? S.members_rnino : S.members;
-    var nM = members.length;
-
-    // observed: at most six months before the first forecast month (the shared x-range rule): monthly Nino-3.4 on
-    // the 1991-2020 base the SFS reforecast shares, or CPC's 3-month RONI
-    var ob = state.hist ? window.NinoObs.get(state.hist, !!useR, valid, { smooth3: state.smooth }) : null;
-    var obsX = ob ? ob.x : [], obsY = ob ? ob.y : [];
-    function smooth(fcArr) {
-      if (!state.smooth) return fcArr;
-      var bridge = obsY.slice(-2).concat(fcArr);
-      return roll3(bridge).slice(Math.min(2, obsY.length));
-    }
-
-    var q = OC.quantiles(members, [10, 25, 75, 90]);
-    var fan = { p10: smooth(q.p10), p25: smooth(q.p25), p75: smooth(q.p75), p90: smooth(q.p90) }, mmm = smooth(q.mean);
-    var fx = valid.map(md), units = "°C", hv = { units: units, digits: 2 };
-
-    var traces = OC.fanTraces(fx, fan, { outerName: "members 10–90%", innerName: "members 25–75%" });
-    if (state.members) traces.push(OC.memberTrace(fx, members.map(function (m) { return smooth(m.slice()); }), { name: "members (" + nM + ")" }));
-    // C3S multi-model mean overlay, same issue window
-    var c3sN = 0;
-    if (state.c3s) {
-      var F = state.c3s, labels = Object.keys(F.models), cx = [], cy = [], fKey = useR ? "rnino" : "n34";
-      c3sN = labels.length;
-      F.valid_months.forEach(function (ym, L3) {
-        cx.push(md(ym)); cy.push(mean(labels.map(function (mo) { return mean(F.models[mo][fKey][L3]); })));
-      });
-      var cyPlot = state.smooth ? roll3(obsY.slice(-2).concat(cy)).slice(Math.min(2, obsY.length)) : cy;
-      traces.push(OC.refTrace(cx, cyPlot, "C3S multi-model mean (" + c3sN + " models)", { markers: true, units: units }));
-    }
-    // ensemble mean, anchored on the last observed month so there is no seam
-    var mx = fx.slice(), my = mmm.slice();
-    if (obsX.length && obsX[obsX.length - 1] < valid[0]) { mx.unshift(md(obsX[obsX.length - 1])); my.unshift(ob.shown[ob.shown.length - 1]); }
-    traces.push(OC.meanTrace(mx, my, "SFS ensemble mean (" + nM + " members)", hv));
-    if (obsX.length) traces = traces.concat(window.NinoObs.traces(ob, hv));
-
-    var shapes = [];
-    [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (yv) {
-      shapes.push(OC.hline(yv, yv > 0 ? "rgba(180,84,31,0.35)" : "rgba(63,111,143,0.35)", "dot", 1));
-    });
-    OC.react("sfsPlumeChart", traces, {
-      title: (useR ? "Relative Niño-3.4" : "Niño-3.4") + " anomaly" + (state.smooth ? ", 3-month running mean" : "") + " — SFS " + S.issue + " issue",
-      yunits: "anomaly (" + units + ")", xrange: OC.monthRange(valid, obsX), shapes: shapes
-    });
-    built = "issue " + S.issue + " · built " + S.generated;
-    $("sfsPlumeUpdated").textContent = built;
-    stampMaps();
-
-    var peak = { v: -99, i: 0 };
-    q.mean.forEach(function (v, i) { if (v > peak.v) peak = { v: v, i: i }; });
-    var pool = members.map(function (m) { return m[peak.i]; })
-      .filter(isFinite).sort(function (a, b) { return a - b; });
-    var c3sPeak = null;
-    if (state.c3s) {
-      var F2 = state.c3s, labels2 = Object.keys(F2.models);
-      var fKey2 = useR ? "rnino" : "n34";
-      c3sPeak = Math.max.apply(null, F2.valid_months.map(function (_, L4) {
-        return mean(labels2.map(function (mo) { return mean(F2.models[mo][fKey2][L4]); }));
-      }));
-    }
-    var chips = [
-      { l: "SFS issue " + S.issue, v: nM + " members", s: "12 monthly leads · beta v1.0", cls: "neut" },
-      { l: "Peak " + (useR ? "RONI" : "Niño-3.4") + " · " + valid[peak.i], v: fmt(peak.v) + " °C",
-        s: "members P10–P90: " + fmt(pct(pool, 0.10), 1) + " … " + fmt(pct(pool, 0.90), 1),
-        cls: peak.v >= 0.5 ? "warm" : "neut" },
-      { l: "C3S " + (c3sN ? c3sN + "-model" : "multi-model") + " peak", v: c3sPeak == null ? "—" : fmt(c3sPeak) + " °C",
-        s: "same issue month, own-hindcast base", cls: "neut" },
-      { l: "Climatology", v: "own reforecast", s: "1991–2020 · 11 members × 30 yrs", cls: "neut" },
-    ];
-    $("sfsChips").innerHTML = chips.map(function (c) {
-      return '<div class="chip"><div class="l">' + c.l + '</div>' +
-             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
-             '<div class="s">' + c.s + "</div></div>";
-    }).join("");
-  }
-
-  function wire(sel, fn) {
-    var bs = PL.querySelectorAll(sel);
-    Array.prototype.forEach.call(bs, function (b) { b.addEventListener("click", function () { fn(b, bs); if (state.sfs) draw(); }); });
-  }
-  function only(b, bs) { Array.prototype.forEach.call(bs, function (o) { o.classList.toggle("on", o === b); }); }
-  wire(".pill[data-idx]", function (b, bs) { state.idx = b.dataset.idx; only(b, bs); });
-  wire(".pill[data-sm]", function (b, bs) { state.smooth = b.dataset.sm === "1"; only(b, bs); });
-  wire(".pill[data-mem]", function (b) { state.members = !state.members; b.classList.toggle("on", state.members); });
-
-  // ── derived indices ──────────────────────────────────────────────────────
-  var idxState = { data: null, key: "dmi" };
-  function drawIdx() {
-    var D = idxState.data;
-    if (!D) return;
-    var d = D.indices[idxState.key];
-    if (!d) return;
-    var valid = D.valid_months, x = valid.map(md);
-    var q = OC.quantiles(d.members, [10, 25, 75, 90]), hv = { units: d.units, digits: 2 };
-    var traces = OC.fanTraces(x, q, { outerName: "members 10–90%", innerName: "members 25–75%" });
-    traces.push(OC.memberTrace(x, d.members, { name: "members (" + d.members.length + ")" }));
-    traces.push(OC.meanTrace(x, q.mean, "ensemble mean", hv));
-    OC.react("sfsIdxChart", traces, { title: d.label + " — SFS " + D.issue + " issue", yunits: d.label + " (" + d.units + ")", xrange: OC.monthRange(valid, []) });
-    $("sfsIdxUpdated").textContent = "issue " + D.issue + " · built " + D.generated;
-  }
-
-  var started = false;
-  function start() {
-    setTimeout(stampMaps, 0);                // the stage fills #about after onRender: stamp the copied template then
-    if (started) return;
-    started = true;
-    fetch("assets/sfs/data/sfs_indices.json")
-      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (D) {
-        idxState.data = D;
-        var order = ["dmi", "sasd", "pdo", "nino3", "nino4", "nino12"];
-        var host = $("sfsIdxPills");
-        order.forEach(function (k) {
-          if (!D.indices[k]) return;
-          var b = document.createElement("button");
-          b.className = "pill" + (k === idxState.key ? " on" : "");
-          b.textContent = D.indices[k].label.split(" (")[0];
-          b.addEventListener("click", function () {
-            idxState.key = k;
-            Array.prototype.forEach.call(host.querySelectorAll(".pill"), function (o) { o.classList.toggle("on", o === b); });
-            drawIdx();
-          });
-          host.appendChild(b);
-        });
-        drawIdx();
-      })
-      .catch(function () {
-        $("sfsIdxChart").innerHTML =
-          '<div style="padding:2rem;color:var(--muted)">indices feed building — check back after the monthly build</div>';
-      });
-
-    Promise.all([
-      fetch("assets/sfs/data/sfs_nino34.json").then(function (r) { if (!r.ok) throw 0; return r.json(); }),
-      fetch("assets/sst/data/enso_forecast.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-      fetch("assets/sst/data/nino_history.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    ]).then(function (res) {
-      state.sfs = res[0]; state.c3s = res[1]; state.hist = res[2];
-      draw();
-    }).catch(function (e) {
-      if (window.console) console.warn("SFS feed unavailable:", e);
-      $("sfsChips").innerHTML =
-        '<div class="chip"><div class="l">SFS feed</div><div class="v neut">unavailable</div>' +
-        '<div class="s">check back after the monthly build (~6th)</div></div>';
-    });
-  }
-  window.SFS = { start: afterPlotly(start) };
-})();
-
 /* CanSIPS group (2026-10-07): the 12-month plume from cansips_dd.json (written monthly by cansips.yml). Loads on the
    first visit to cs-plume and redraws on every mount, since the stage switches products without a hashchange. */
 (function () {
@@ -2002,6 +1765,6 @@ afterPlotly(function () {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js?v=850ccbf7b6" defer></script>
+<script src="/assets/stage.js?v=0a9aae58c5" defer></script>
 </body>
 </html>
