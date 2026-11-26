@@ -22,6 +22,10 @@ on:
         description: 'Build only the RMM OLR frame (ERA5 1979-2001 climatology of the RMM band); proxy baseline untouched'
         type: boolean
         default: false
+      gaincheck:
+        description: 'Report only: triple collocation of the proxy, ERA5 and the NOAA HIRS OLR record (baseline untouched)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -31,7 +35,7 @@ env:
 
 jobs:
   part:
-    if: ${{ inputs.climatology && !inputs.rmm_frame }}
+    if: ${{ inputs.climatology && !inputs.rmm_frame && !inputs.gaincheck }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
@@ -79,7 +83,7 @@ jobs:
 
   build:
     needs: [part, recent]
-    if: ${{ !cancelled() && !inputs.rmm_frame && needs.recent.result == 'success' && (needs.part.result == 'success' || needs.part.result == 'skipped') }}
+    if: ${{ !cancelled() && !inputs.rmm_frame && !inputs.gaincheck && needs.recent.result == 'success' && (needs.part.result == 'success' || needs.part.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -123,6 +127,29 @@ jobs:
           done
           echo "ERROR: could not push after 5 attempts." >&2
           exit 1
+
+  gaincheck:
+    needs: recent
+    if: ${{ inputs.gaincheck && needs.recent.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
+      - uses: actions/download-artifact@v7
+        with:
+          name: olrbase-recent
+          path: parts
+      - name: Gains of the proxy, ERA5 and the HIRS record
+        run: |
+          set -o pipefail
+          python scripts/sst/build_olr_baseline.py gaincheck --recent parts/era5_olr_recent.npz | tee gain.log
+          { echo '```'; cat gain.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
   frame-part:
     if: ${{ inputs.rmm_frame }}

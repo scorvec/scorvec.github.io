@@ -13,6 +13,9 @@ as proxy − offset − climatology, both looked up on the 366-slot calendar (qu
                longitude's mean over the proxy record instead also takes out much of a long-lasting anomaly such as
                an El Niño's.
 
+  gaincheck    (report only, olr-baseline.yml gaincheck=true) whether the proxy or ERA5 sets the proxy-on-ERA5 slope
+               below 1: triple collocation with NOAA's daily HIRS OLR record (see gaincheck).
+
 The RMM's OLR channel (scripts/mjo/src/olr_channel.py) is ERA5 OLR put into the frame of the Wheeler & Hendon
 reference climatology, NOAA interpolated OLR over 1979-2001 (scripts/mjo/data/reference/climatology.nc), and that
 frame is built here too:
@@ -408,6 +411,107 @@ def frame(clim_paths: list[Path]) -> None:
     print(f"wrote {FRAME_OUT.name} ({FRAME_OUT.stat().st_size / 1e3:.0f} kB)", flush=True)
 
 
+CDR = "https://www.ncei.noaa.gov/data/outgoing-longwave-radiation-daily/access/"  # NOAA HIRS OLR CDR, daily, 1°
+
+
+def cdr_bands(days: pd.DatetimeIndex) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
+    """NOAA's daily OLR climate data record (HIRS, broadband) as the proxy's band means on the 2.5° cells."""
+    import re
+    import tempfile
+
+    sys.path.insert(0, str(HERE.parent / "lib"))
+    from webget import get
+
+    names = sorted(set(re.findall(r'href="(olr-daily_v[^"]+\.nc)"', get(CDR, timeout=60).decode())))
+    want = []
+    for n in names:  # olr-daily_v01r02[-preliminary]_YYYYMMDD_YYYYMMDD.nc
+        t0, t1 = (pd.Timestamp(x) for x in re.findall(r"_(\d{8})", n)[-2:])
+        if t0 <= days[-1] and t1 >= days[0]:
+            want.append(n)
+    t_all, out = [], {b: [] for b in BANDS}
+    for n in want:
+        with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
+            tf.write(get(CDR + n, timeout=300))
+            tf.flush()
+            with xr.open_dataset(tf.name) as ds:
+                d = ds.sel(time=slice(days[0], days[-1]))
+                lat, lon = d["lat"].values, d["lon"].values % 360
+                olr = d["olr"].values.astype(float)  # time, lat, lon
+                tt = pd.DatetimeIndex(d["time"].values).normalize()
+        # each 1° box's overlap with each centred 2.5° cell
+        bl, br, cl, cr = lon - 0.5, lon + 0.5, GRID - 1.25, GRID + 1.25
+        W = np.zeros((len(GRID), len(lon)))
+        for s in (-360, 0, 360):
+            W += np.clip(np.minimum(cr[:, None], br[None] + s) - np.maximum(cl[:, None], bl[None] + s), 0, None)
+        W /= W.sum(1, keepdims=True)
+        for b, half in BANDS.items():
+            out[b].append(olr[:, np.abs(lat) <= half, :].mean(1) @ W.T)
+        t_all.append(tt)
+        print(f"  {n}: {len(tt)} days", flush=True)
+    t = pd.DatetimeIndex(np.concatenate(t_all))
+    keep = ~t.duplicated(keep="last")  # a day in a preliminary file and in its final version: the final one
+    return t[keep], {b: np.concatenate(v)[keep] for b, v in out.items()}
+
+
+def gaincheck(recent_path: Path) -> None:
+    """Which source damps: triple collocation of the GMGSI proxy, ERA5 and NOAA's HIRS OLR record. Each is taken as
+    gain x truth + its own error, errors independent; then gain ratios follow from covariances with the third source
+    (cov(P,C)/cov(E,C) = proxy gain / ERA5 gain), free of the regression dilution a two-source slope carries. Each
+    source's anomaly is about its own mean and annual harmonic over the common days (the same treatment for all
+    three). Daily values and 30-day means; moving-block bootstrap over days (30-day blocks, every longitude together).
+    Report only."""
+    with xr.open_dataset(STORE) as ds:
+        rt = ds.load()
+    tg = pd.DatetimeIndex(rt["time"].values)
+    te, era = load_parts([recent_path])
+    tc, cdr = cdr_bands(tg.intersection(te))
+    both = tg.intersection(te).intersection(tc)
+    print(f"common days {both[0]:%Y-%m-%d}..{both[-1]:%Y-%m-%d}: {len(both)}", flush=True)
+    rng = np.random.default_rng(1)
+    slot = doy366(both.values)
+    X = design(slot, 1)
+    lon = rt["lon"].values
+    sectors = {
+        "all longitudes": np.ones(len(lon), bool),
+        "60E-180 (Indian Ocean to the date line)": (lon >= 60) & (lon <= 180),
+    }
+    for b in BANDS:
+        src = {
+            "proxy": rt[f"olr_{b}"].sel(time=both).values.astype(float),
+            "era5": era[b][te.get_indexer(both)],
+            "cdr": cdr[b][tc.get_indexer(both)],
+        }
+        ok = np.all([np.isfinite(v).all(1) for v in src.values()], axis=0)
+        an = {k: v[ok] - X[ok] @ np.linalg.lstsq(X[ok], v[ok], rcond=None)[0] for k, v in src.items()}
+        n30 = ok.sum() // 30 * 30
+        for scale in ("daily", "30d"):
+            A = an if scale == "daily" else {k: v[:n30].reshape(-1, 30, v.shape[1]).mean(1) for k, v in an.items()}
+            n = len(A["proxy"])
+            blk = 30 if scale == "daily" else 1
+            for sname, m in sectors.items():
+                P, E, C = (A[k][:, m] for k in ("proxy", "era5", "cdr"))
+
+                def stats(i, P=P, E=E, C=C):
+                    p, e, c = (z[i] - z[i].mean(0) for z in (P, E, C))
+                    cpe, cpc, cec = (p * e).sum(), (p * c).sum(), (e * c).sum()
+                    return np.array([cpc / cec, cpe / cec, cpe / cpc, cpe / (e * e).sum()])
+
+                est = stats(np.arange(n))
+                boot = np.array(
+                    [
+                        stats(((rng.integers(0, n, -(-n // blk))[:, None] + np.arange(blk)) % n).ravel()[:n])
+                        for _ in range(NBOOT)
+                    ]
+                )
+                lo, hi = np.percentile(boot, [2.5, 97.5], axis=0)
+                lab = ("proxy/ERA5", "proxy/HIRS", "ERA5/HIRS", "two-source slope proxy on ERA5")
+                print(
+                    f"  {b} {scale}, {sname} ({n} values): "
+                    + "; ".join(f"{k} {v:.2f} [{a:.2f}, {z:.2f}]" for k, v, a, z in zip(lab, est, lo, hi)),
+                    flush=True,
+                )
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="ERA5 climatology and offset for the GMGSI OLR proxy, and the RMM frame")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -431,8 +535,12 @@ def main(argv=None) -> int:
     r.add_argument(
         "--clim", type=Path, nargs="+", required=True, help=f"fetch outputs covering {WH04_CLIM.name}'s period"
     )
+    g = sub.add_parser("gaincheck", help="triple collocation of the proxy, ERA5 and NOAA's HIRS OLR record (report)")
+    g.add_argument("--recent", type=Path, required=True, help="fetch output covering the proxy store's days")
     args = ap.parse_args(argv)
-    if args.cmd == "fetch":
+    if args.cmd == "gaincheck":
+        gaincheck(args.recent)
+    elif args.cmd == "fetch":
         fetch(args.start, args.end, args.out, args.workers)
     elif args.cmd == "frame":
         frame(args.clim)
