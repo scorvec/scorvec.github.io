@@ -59,8 +59,14 @@ class Era5:
     @staticmethod
     def peaks(s: pd.Series, days: pd.DatetimeIndex) -> np.ndarray:
         """ERA5's peaks over windows like the forecast's: the maximum of s over every complete window as long as
-        days[0]..days[-1], on the forecast's hours of the day, ending within WINDOW days of days[-1]'s calendar date."""
-        sub = s[s.index.hour.isin(set(days.hour))]
+        days[0]..days[-1], on the forecast's hours of the day, ending within WINDOW days of days[-1]'s calendar date.
+        ERA5 is sampled at a few hours only: a forecast hour it does not hold (a 06 or 18 UTC run's) takes the sampled
+        hour before it, so a window still holds as many values as the forecast's."""
+        have = np.array(sorted(set(s.index.hour)))
+        hours = {int(have[have <= h].max()) if (have <= h).any() else int(have.max()) for h in set(days.hour)}
+        sub = s[s.index.hour.isin(hours)]
+        if sub.empty:
+            return np.array([])
         span = days[-1] - days[0]
         roll = sub.rolling(span, closed="both")
         top, n = roll.max(), roll.count()
