@@ -580,12 +580,25 @@ window.plotly = function () {
   <section class="card" id="biasmap-card" hidden>
     <h2>Where each model runs high or low</h2>
     <div class="controls">
+      <label id="b-kind-l">Models<select id="b-kind"></select></label>
       <label>Variable<select id="b-var"></select></label>
       <label>Lead<select id="b-lead"></select></label>
       <label id="b-model-l" hidden>Model<select id="b-model"></select></label>
     </div>
     <img class="fig" id="b-fig" alt="">
     <p class="note" id="b-note"></p>
+  </section>
+
+  <section class="card" id="country-card" hidden>
+    <h2>Errors country by country</h2>
+    <div class="controls">
+      <label>Country<select id="k-country"></select></label>
+      <label id="k-kind-l">Models<select id="k-kind"></select></label>
+      <label>Variable<select id="k-var"></select></label>
+      <label>Lead<select id="k-day"></select></label>
+    </div>
+    <div class="vfig" id="k-fig" data-noswipe></div>
+    <p class="note" id="k-note"></p>
   </section>
 
   <section class="card" id="wind-card" hidden>
@@ -680,7 +693,7 @@ window.plotly = function () {
         one GitHub release a month: each run's pairs against the surface stations (<code>sfc_&lt;init&gt;.parquet</code>),
         the radiosondes (<code>raob_</code>) and Stage IV (<code>rain_</code>), their sums (<code>stats_</code>,
         <code>stn_</code>), and the ensembles' cases and sums (<code>ens-sfc-&lt;model&gt;_</code>, <code>ens-raob-</code>,
-        <code>ens-rain-</code>, <code>ens-stats_</code>, <code>ens-rel_</code>).</li>
+        <code>ens-rain-</code>, <code>ens-stats_</code>, <code>ens-stn_</code>, <code>ens-rel_</code>).</li>
       <li><a href="https://github.com/scorvec/scorvec.github.io/releases?q=verify-z500&amp;expanded=true">verify-z500-YYYY-MM</a>:
         every model's 500&nbsp;hPa height on the 1.5° grid (<code>z500-&lt;model&gt;_</code>, ensemble means
         <code>ens-z500-</code> and members <code>ens-z500m-</code>), ERA5's (<code>era5-z500_</code>) and each run's
@@ -1680,10 +1693,12 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   function drawFigs(figs) {
     const ver = figs.generated.replace(/\D/g, ""), acc = figs.acc || {}, rain = figs.rain || {};
     const win = W === "10" ? "30" : W;
+    // the kinds of model the 500 hPa, bias map and country views switch between, and the dates of their time axes
+    const KIND = { single: "Single runs", means: "Ensemble means" };
+    const date = t => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
     const keys = Object.keys(acc);
     if (keys.length) {
-      const ar = $("a-region"), ad = $("a-day"), ak = $("a-kind"), KIND = { single: "Single runs", means: "Ensemble means" };
-      const date = t => new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+      const ar = $("a-region"), ad = $("a-day"), ak = $("a-kind");
       fill(ak, Object.keys(KIND), k => KIND[k]);
       fill(ar, ["NH", "SH"].filter(r => keys.some(k => k.startsWith(r + "_"))), r => r === "NH" ? "Northern" : "Southern");
       fill(ad, ["1", "3", "5", "7", "10", "15"], d => `Day ${d}`);
@@ -1754,26 +1769,69 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       $("rainmap-card").hidden = false;
       render();
     }
-    // the station bias maps: each variable and lead, the four models side by side or on a phone one at a time
-    const bias = figs.bias || {}, bmaps = bias.maps || {};
-    if (Object.keys(bmaps).length) {
-      const bv = $("b-var"), bl = $("b-lead"), bm = $("b-model");
-      fill(bv, Object.keys(bias.variables), v => bias.variables[v].label);
-      fill(bl, bias.leads.map(String), h => `Day ${h / 24}`);
-      fill(bm, bias.models);
+    // the station bias maps of the single runs or the ensemble means: each variable and lead, the four models side by
+    // side or on a phone one at a time
+    const bias = figs.bias || {}, bkinds = Object.keys(KIND).filter(k => Object.keys(bias[k]?.maps || {}).length);
+    if (bkinds.length) {
+      const bk = $("b-kind"), bv = $("b-var"), bl = $("b-lead"), bm = $("b-model");
+      fill(bk, bkinds, k => KIND[k]);
+      $("b-kind-l").hidden = bkinds.length < 2;
       const render = () => {
-        const e = bmaps[`${bv.value}_${bl.value}`], w = bias.window, day = bl.value / 24, what = bias.variables[bv.value].label;
+        const B = bias[bk.value], w = B.window, means = bk.value === "means";
+        fill(bv, Object.keys(B.variables), v => B.variables[v].label, true);
+        fill(bl, B.leads.map(String), h => `Day ${h / 24}`, true);
+        fill(bm, B.models, null, true);
+        const e = B.maps[`${bv.value}_${bl.value}`], day = bl.value / 24, what = B.variables[bv.value].label;
         if (!e) { $("b-fig").hidden = true; $("b-note").textContent = `No map of ${what.toLowerCase()} at day ${day} tonight.`; return; }
         const own = e.models[bm.value], one = phone.matches && own;
         $("b-model-l").hidden = !own;
         $("b-fig").hidden = false;
-        figure($("b-fig"), one ? own.file : e.file, ver, `${one ? `Map of ${bm.value}'s` : "Maps of each model's"} mean ${what.toLowerCase()} error at day ${day}, significant areas coloured`);
+        figure($("b-fig"), one ? own.file : e.file, ver, `${one ? `Map of the ${bm.value}${means ? " mean" : ""}'s` : `Maps of each ${means ? "ensemble mean" : "model"}'s`} ` +
+          `mean ${what.toLowerCase()} error at day ${day}, significant areas coloured`);
         const share = Object.entries(e.models).map(([m, k]) => `${esc(m)} ${k.mapped ? Math.round(100 * k.significant / k.mapped) : 0}%`);
         $("b-note").innerHTML = `Day ${day} forecasts of the ${w.runs} 00Z runs from ${ymd(w.first)} to ${ymd(w.last)}. ` +
           `Share of mapped cells beyond the noise: ${share.join(", ")}.`;
       };
-      [bv, bl, bm, phone].forEach(el => el.addEventListener("change", render));
+      [bk, bv, bl, bm, phone].forEach(el => el.addEventListener("change", render));
       $("biasmap-card").hidden = false;
+      render();
+    }
+    // the G20 countries' errors run by run (country_<code>.json): running means by the date the forecasts verify, and
+    // after each name the model's means over the days every model shown has, a mean bias only where its test passes
+    const ctry = figs.countries || {}, codes = Object.keys(ctry.countries || {});
+    if (codes.length) {
+      const kc = $("k-country"), kk = $("k-kind"), kv = $("k-var"), kd = $("k-day");
+      const signed = x => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(2);
+      fill(kc, codes, c => ctry.countries[c].name);
+      kc.value = codes.includes("US") ? "US" : codes[0];
+      fill(kk, Object.keys(KIND), k => KIND[k]);
+      fill(kd, ctry.leads.map(String), h => `Day ${h / 24}`);
+      kd.value = "120";
+      const render = () => chart("k-fig", [ctry.countries[kc.value].file], d => {
+        const kinds = Object.keys(KIND).filter(k => d.kinds[k]);
+        if (!kinds.length) return null;
+        fill(kk, kinds, k => KIND[k], true);
+        $("k-kind-l").hidden = kinds.length < 2;
+        const K = d.kinds[kk.value];
+        fill(kv, Object.keys(K.vars), v => K.vars[v].label, true);
+        const V = K.vars[kv.value], L = V.leads[kd.value];
+        if (!L) return null;
+        const ms = ordered(Object.keys(L.models)), t0 = Date.parse(L.first + "T00:00Z"), n = L.models[ms[0]].bias.length;
+        const note = m => { const s = L.models[m]; return `bias ${s.mb == null ? "–" : signed(s.mb)}, RMSE ${s.mr.toFixed(2)}${s.days ? ` (${s.days} days)` : ""}`; };
+        const line = (m, k) => L.models[m][k].map((v, i) => ({ u: t0 + i * 864e5, v }));
+        $("k-note").textContent = `${kinds.length < 2 ? `${KIND[kk.value]} only. ` : ""}${V.stations.toLocaleString()} stations on the median run; ` +
+          `day ${kd.value / 24} forecasts verifying ${date(t0)} to ${date(t0 + (n - 1) * 864e5)}.`;
+        return { cols: 1, height: 260, legend: ms.map(m => ({ ...who(m), note: note(m) })),
+          keys: [`after each name: its means (${V.unit}) over the ${L.shared} days every model has, or over its own (counted); ` +
+            "a dash: a mean bias within the noise (false discovery rate 10%)"],
+          panels: [
+            { title: `Bias (${V.unit}), a ${d.smooth_days}-day running mean by the date the forecasts verify`, u: { type: "time" }, refs: [{ v: 0 }],
+              markers: false, ends: true, tipHead: date, series: ms.map(m => ({ ...who(m), pts: line(m, "bias") })) },
+            { title: `RMSE (${V.unit})`, u: { type: "time" }, v: { floor: 0 },
+              markers: false, ends: true, tipHead: date, series: ms.map(m => ({ ...who(m), pts: line(m, "rmse") })) }] };
+      });
+      [kc, kk, kv, kd].forEach(el => el.addEventListener("change", render));
+      $("country-card").hidden = false;
       render();
     }
   }
@@ -2226,6 +2284,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       ["uppermaps", "Upper-air maps", "error by level, against ERA5 or an analysis", "uppermap-card", true],
       ["stations", "Station map", "error at each station", "map-card"],
       ["biasmaps", "Bias maps", "too high or too low, where", "biasmap-card", true],
+      ["countries", "By country", "the G20's errors run by run", "country-card", true],
       ["wind", "Wind speed", "the distribution, calms to gales", "wind-card", true],
       ["rain", "US rain scores", "threat and fractions skill", "precip-card", true],
       ["rainmaps", "US rain maps", "too wet or too dry, where", "rainmap-card", true]]],

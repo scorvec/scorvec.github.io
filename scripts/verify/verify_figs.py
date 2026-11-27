@@ -15,15 +15,20 @@ page, and what the database holds (database: each model's runs).
         equitable threat score by threshold and the fractions skill score by neighbourhood on the common grid
         (rainskill_<window>.json).
   bias  Each model's mean error at the surface stations over the newest 30 runs, smoothed onto a 1 deg world map for
-        each variable and lead, filled contours (bias_<var>_<lead>.webp: the four models side by side;
-        bias_<var>_<lead>_<model>.webp: one model, for a phone). The stations are the station map's
-        (stations_30.json); each run's errors come from its station sums (stn_<init>.parquet). A cell's error in a
+        each variable and lead, filled contours, for the single runs (the window of scores_30.json, each run's errors
+        from its station sums stn_<init>.parquet) and the ensemble means (ens_scores_30.json, ens-stn_<init>.parquet;
+        the wind the members' mean speed): bias_<kind>_<var>_<lead>.webp the four models side by side,
+        bias_<kind>_<var>_<lead>_<model>.webp one model, for a phone. A cell's error in a
         run is its stations' summed errors over their pairs, each station weighted by exp(-(d/BIAS_KM)^2) (within
         3 BIAS_KM); a cell is drawn where the weights of stations with BIAS_MIN_N runs sum to BIAS_MIN_WEIGHT (about
         three stations within BIAS_KM). Its bias is the mean of its run series, tested as the scorecards' means are
         (t on the series, the variance inflated for the map's pooled lag-1 autocorrelation), coloured only where
         Benjamini-Hochberg passes at FDR_Q over the map's cells: the run series carry the errors' own day-to-day
         and neighbour-to-neighbour correlation.
+  countries  The G20 countries' errors run by run (country_series.py's table of the station sums by country): per
+        country, kind (single runs, ensemble means), variable and lead, each model's bias and RMSE by the date they
+        verify as running means, and its means over the days every model has, the mean bias only where its test
+        passes (country_<code>.json; country_series).
   scores  For each window of runs of the database: the scorecards (card_<window>_<region>_<model>_<reference>.webp),
         the RMSE and bias by lead of each variable in each region (lead_<window>_<variable>.json) and the error against
         pressure at a lead (profile_<window>_<quantity>.json).
@@ -576,6 +581,11 @@ BIAS_VARS = {  # variable: what it is, its unit, the colour levels' positive hal
 BIAS_KM = 300.0  # the smoothing kernel's e-folding distance
 BIAS_MIN_WEIGHT = 3 * np.exp(-1.0)  # weights a cell needs: about three stations within BIAS_KM
 BIAS_MIN_N = 10  # runs a station needs at a lead
+BIAS_KINDS = {  # kind: its station sums' files, the window whose runs are mapped, its models in the figures' order
+    "single": ("stn", "scores_30.json", tuple(COLORS)),
+    "means": ("ens-stn", "ens_scores_30.json", tuple(CENTRE)),
+}
+BIAS_SPEED = {"ws10": "wind10"}  # the ensemble means' wind: the members' mean speed, mapped as the single runs' speed
 BIAS_LAT = np.arange(-60.0, 85.01, 1.0)
 BIAS_LON = np.arange(-180.0, 180.0, 1.0)
 
@@ -654,16 +664,18 @@ def bias_field(W, se: np.ndarray, n: np.ndarray) -> tuple[np.ndarray, np.ndarray
     return full_v.reshape(shape), full_s.reshape(shape), int(ok.sum()), int(sig.sum())
 
 
-def bias_runs(derived: Path, inits: list[str]) -> pd.DataFrame:
-    """The surface stations' run sums at the map leads for the runs ``inits`` (YYYYMMDDHH), the bias variables only."""
-    paths = [f for i in inits if (f := derived / f"stn_{i}.parquet").exists()]
+def bias_runs(derived: Path, prefix: str, inits: list[str]) -> pd.DataFrame:
+    """The surface stations' run sums at the map leads for the runs ``inits`` (YYYYMMDDHH) from their station sums
+    (<prefix>_<init>.parquet), the bias variables only, the ensemble means' speed (ws10) named as the single runs'."""
+    paths = [f for i in inits if (f := derived / f"{prefix}_{i}.parquet").exists()]
     if not paths:
         return pd.DataFrame()
-    cols = ["model", "network", "variable", "station_id", "lead_h", "n", "se"]
-    d = pd.concat([pd.read_parquet(f, columns=cols).assign(init=f.stem[4:]) for f in paths], ignore_index=True)
-    d = d[(d["network"].astype(str) == "GHCNH") & d["variable"].astype(str).isin(BIAS_VARS)]
-    d = d.astype({"model": str, "variable": str, "station_id": str})
-    return d.assign(station_id=d["station_id"].str.split(":", n=1).str[-1])  # as the station map keys them: no "GHCNH:"
+    cols = ["model", "network", "variable", "station_id", "lead_h", "lat", "lon", "n", "se"]
+    d = pd.concat([pd.read_parquet(f, columns=cols).assign(init=f.stem.rsplit("_", 1)[1]) for f in paths],
+                  ignore_index=True)  # fmt: skip
+    d = d.astype({"model": str, "network": str, "variable": str, "station_id": str})
+    d = d.assign(variable=d["variable"].replace(BIAS_SPEED))
+    return d[(d["network"] == "GHCNH") & d["variable"].isin(BIAS_VARS)]
 
 
 def bias_panel(ax, field, cmap, norm) -> str:
@@ -695,37 +707,41 @@ def bias_bar(fig, cax, cmap, norm, label: str, sparse: bool = False) -> None:
 
 
 def bias_figs(derived: Path, out: Path) -> dict:
-    """The station bias maps (module docstring, bias): every variable and lead, four models and one at a time."""
+    """The station bias maps (module docstring, bias) of the single runs and of the ensemble means."""
+    return {kind: found for kind in BIAS_KINDS if (found := bias_kind(derived, out, kind))}
+
+
+def bias_kind(derived: Path, out: Path, kind: str) -> dict:
+    """One kind's bias maps (BIAS_KINDS): every variable and lead, four models and one at a time."""
     import cartopy.crs as ccrs
 
-    path, window_path = D.OUT_DIR / "stations_30.json", D.OUT_DIR / "scores_30.json"
-    if not path.exists() or not window_path.exists():
+    prefix, window_file, order = BIAS_KINDS[kind]
+    if not (window_path := D.OUT_DIR / window_file).exists():
         return {}
-    st = json.loads(path.read_text())
     card = json.loads(window_path.read_text())
     w = card["window"]
     inits = sorted({i.replace("-", "").replace("T", "") for runs in card["inits"].values() for i in runs})
-    runs = bias_runs(derived, inits)
+    runs = bias_runs(derived, prefix, inits)
     if runs.empty:
         return {}
     col = {i: c for c, i in enumerate(inits)}
     first, last = (pd.to_datetime(w[k], format="%Y%m%d%H") for k in ("first", "last"))
-    models = [m for m in COLORS if m in st["models"]]
+    models = [m for m in order if m in card["inits"]]
+    name = {m: m if kind == "single" else f"{m} mean" for m in models}
+    whose = "mean error" if kind == "single" else "mean error of the ensemble means"
     proj = ccrs.PlateCarree()
     maps, summary = {}, {}
-    for layer in st["layers"]:
-        var = layer["var"]
-        if var not in BIAS_VARS:
+    for var, (what, unit, half) in BIAS_VARS.items():
+        if (v := runs[runs["variable"] == var]).empty:
             continue
-        what, unit, half = BIAS_VARS[var]
         edges = [-e for e in half[::-1]] + list(half)
         cmap = ListedColormap(plt.get_cmap("RdBu_r")(np.linspace(0.04, 0.96, len(edges) + 1)))
         cmap.set_extremes(under=cmap(0), over=cmap(cmap.N - 1))
         norm = BoundaryNorm(edges, cmap.N, extend="both")
-        W = bias_weights(np.asarray(layer["lat"], float), np.asarray(layer["lon"], float))
-        row = {sid: r for r, sid in enumerate(map(str, layer["ids"]))}
-        v = runs[(runs["variable"] == var) & runs["station_id"].isin(row)]
-        for lead in st["leads"]:
+        pos = v.groupby("station_id")[["lat", "lon"]].median()  # where the stations reported from, over the runs
+        W = bias_weights(pos["lat"].to_numpy(float), pos["lon"].to_numpy(float))
+        row = {sid: r for r, sid in enumerate(pos.index)}
+        for lead in D.MAP_LEADS:
             day, key = lead // 24, f"{var}_{lead}"
             fields = {}
             for m, g in v[(v["lead_h"] == lead) & v["model"].isin(models)].groupby("model"):
@@ -740,16 +756,16 @@ def bias_figs(derived: Path, out: Path) -> dict:
             fig, axes = plt.subplots(2, 2, figsize=house.size(15, 0.55), subplot_kw={"projection": proj})
             fig.subplots_adjust(left=0.01, right=0.99, top=0.87, bottom=0.155, wspace=0.02, hspace=0.1)
             for ax, m in zip(axes.flat, fields, strict=False):
-                ax.set_title(f"{m}: {bias_panel(ax, fields[m], cmap, norm)}", loc="left", fontsize=14)
+                ax.set_title(f"{name[m]}: {bias_panel(ax, fields[m], cmap, norm)}", loc="left", fontsize=14)
             for ax in axes.flat[len(fields) :]:
                 ax.set_visible(False)
             bias_bar(fig, fig.add_axes((0.2, 0.095, 0.6, 0.024)), cmap, norm,
                      f"forecast − observed ({unit}); blue: too low, red: too high; grey: within the noise")  # fmt: skip
-            fig.suptitle(f"{what}: mean error at day {day}", x=0.01, y=0.985, ha="left")
+            fig.suptitle(f"{what}: {whose} at day {day}", x=0.01, y=0.985, ha="left")
             fig.text(0.01, 0.93, f"00Z runs {first:%-d %b} to {last:%-d %b %Y} against the surface stations (GHCNh), "
                      f"smoothed over {BIAS_KM:.0f} km · coloured where significant at a 10 % false-discovery rate",
                      color=house.INK2, fontsize=15)  # fmt: skip
-            entry = {"file": save(fig, out / f"bias_{key}.webp"), "models": {}}
+            entry = {"file": save(fig, out / f"bias_{kind}_{key}.webp"), "models": {}}
             for m, field in fields.items():  # one model a picture, for a phone
                 fig = plt.figure(figsize=house.size(NARROW, 0.68))
                 ax = fig.add_axes((0.01, 0.3, 0.98, 0.56), projection=proj)
@@ -757,14 +773,100 @@ def bias_figs(derived: Path, out: Path) -> dict:
                 bias_bar(fig, fig.add_axes((0.07, 0.235, 0.86, 0.035)), cmap, norm,
                          f"forecast − observed ({unit})\nblue: too low · red: too high · grey: within the noise",
                          sparse=True)  # fmt: skip
-                fig.suptitle(f"{m}: {what[0].lower()}{what[1:]}, day {day}", x=0.02, y=0.975, ha="left")
-                entry["models"][m] = {"file": save(fig, out / f"bias_{key}_{m}.webp"), "mapped": field[2],
-                                      "significant": field[3]}  # fmt: skip
+                fig.suptitle(f"{name[m]}: {what[0].lower()}{what[1:]}, day {day}", x=0.02, y=0.975, ha="left")
+                file = out / f"bias_{kind}_{key}_{m.replace('-', '')}.webp"
+                entry["models"][m] = {"file": save(fig, file), "mapped": field[2], "significant": field[3]}
             maps[key] = entry
         if any(k.startswith(f"{var}_") for k in maps):
             summary[var] = {"label": what, "unit": unit}
-            print(f"bias {var}: maps drawn", flush=True)
-    return {"maps": maps, "variables": summary, "leads": st["leads"], "models": models, "window": w}
+            print(f"bias {kind} {var}: maps drawn", flush=True)
+    return {"maps": maps, "variables": summary, "leads": list(D.MAP_LEADS), "models": models, "window": w}
+
+
+# --------------------------------------------------------------------------- country series
+COUNTRY_MIN_STATIONS = 10  # stations a country's variable needs on its median run, else it is one station's errors
+COUNTRY_MIN_DAYS = 30  # days a model needs in a country's chart
+COUNTRY_VARS = {  # variable: its unit, its name for the single runs and for the ensemble means
+    "t2m": ("°C", "2 m temperature", "2 m temperature"),
+    "td2m": ("°C", "2 m dew point", "2 m dew point"),
+    "msl": ("hPa", "Sea-level pressure", "Sea-level pressure"),
+    "wind10": ("m/s", "10 m wind", "10 m wind speed"),  # the single runs' RMSE is the vector's (country_series.py)
+}
+COUNTRY_MODELS = {"single": list(COLORS), "means": list(CENTRE)}
+
+
+def country_series(t: pd.DataFrame, models: list[str]) -> dict | None:
+    """One chart of a country (``t``: the runs' sums of one kind, variable and lead): each model's bias and RMSE by
+    the date they verify, as SMOOTH_DAYS running means, and its means over the days that every model with
+    WINDOW_SHARE of them has, so those compare on one sample (a model with fewer over its own days, which it
+    counts). The mean bias carries its p value (``mean_test``: t on the days' series, the variance inflated for the
+    lag-1 autocorrelation pooled over the models), for ``country_figs`` to test."""
+    t = t.assign(day=(t["init"] + pd.to_timedelta(t["lead_h"], unit="h")).dt.normalize())
+    t = t.assign(bias=t["se"] / t["n"], mse=t["sse"] / t["n"])
+    days = pd.date_range(t["day"].min(), t["day"].max(), freq="D")
+    daily = {m: g.set_index("day")[["bias", "mse"]].reindex(days) for m, g in t.groupby("model")}
+    daily = {m: daily[m] for m in models if m in daily and daily[m]["bias"].notna().sum() >= COUNTRY_MIN_DAYS}
+    if not daily:
+        return None
+    most = max(x["bias"].notna().sum() for x in daily.values())
+    full = [m for m, x in daily.items() if x["bias"].notna().sum() >= D.WINDOW_SHARE * most]
+    common = pd.concat([daily[m]["bias"] for m in full], axis=1).notna().all(axis=1).to_numpy()
+    mean, p = mean_test(np.vstack([np.where(common | (m not in full), x["bias"], np.nan) for m, x in daily.items()]),
+                        COUNTRY_MIN_DAYS)  # fmt: skip
+    out = {}
+    for (m, x), mb, pm in zip(daily.items(), mean, p, strict=True):
+        on = common if m in full else x["bias"].notna().to_numpy()
+        roll = x.rolling(SMOOTH_DAYS, center=True, min_periods=SMOOTH_DAYS // 2 + 1).mean()
+        out[m] = {
+            "bias": nums(roll["bias"].to_numpy(), 3),
+            "rmse": nums(np.sqrt(roll["mse"].to_numpy()), 3),
+            "mb": num(mb, 3),
+            "mr": num(np.sqrt(x["mse"].to_numpy()[on].mean()), 3),
+            "days": None if m in full else int(on.sum()),
+            "p": pm,
+        }
+    return {"first": f"{days[0]:%Y-%m-%d}", "shared": int(common.sum()), "models": out}
+
+
+def country_figs(table: Path | None, out: Path) -> dict:
+    """The G20 countries' errors run by run (country_series.py's table): one file a country (country_<code>.json) of
+    every kind, variable and lead it has COUNTRY_MIN_STATIONS stations for, the mean biases through Benjamini-Hochberg
+    at FDR_Q over everything the file holds, and kept only where they pass."""
+    import country_series as C
+    from mverify.significance import fdr
+
+    if table is None or not table.exists():
+        return {}
+    t = pd.read_parquet(table).astype({"kind": str, "model": str, "variable": str, "country": str})
+    listing = {}
+    for code, c in t.groupby("country"):
+        kinds = {}
+        for kind, k in c.groupby("kind"):
+            charted = {}
+            for var, v in k[k["variable"].isin(COUNTRY_VARS)].groupby("variable"):
+                day1 = v[v["lead_h"] == v["lead_h"].min()]
+                stations = int(day1.groupby("init")["stations"].max().median())
+                if stations < COUNTRY_MIN_STATIONS:
+                    continue
+                leads = {
+                    str(int(h)): s for h, g in v.groupby("lead_h") if (s := country_series(g, COUNTRY_MODELS[kind]))
+                }
+                if leads:
+                    unit, single, means = COUNTRY_VARS[var]
+                    charted[var] = {"label": single if kind == "single" else means, "unit": unit, "stations": stations,
+                                    "leads": leads}  # fmt: skip
+            if charted:
+                kinds[kind] = {"vars": {v: charted[v] for v in COUNTRY_VARS if v in charted}}
+        if not kinds:
+            continue
+        lines = [m for k in kinds.values() for v in k["vars"].values() for s in v["leads"].values()
+                 for m in s["models"].values()]  # fmt: skip
+        for m, sig in zip(lines, fdr(np.array([m.pop("p") for m in lines], float), FDR_Q), strict=True):
+            m["mb"] = m["mb"] if sig else None  # a mean bias within the noise is not shown
+        body = {"code": code, "name": C.COUNTRIES[code], "smooth_days": SMOOTH_DAYS, "kinds": kinds}
+        listing[code] = {"name": C.COUNTRIES[code], "file": dump(body, out / f"country_{code}.json")}
+        print(f"country {code}: " + ", ".join(f"{k} {len(v['vars'])} variables" for k, v in kinds.items()), flush=True)
+    return {"countries": dict(sorted(listing.items(), key=lambda kv: kv[1]["name"])), "leads": list(D.MAP_LEADS)}
 
 
 # --------------------------------------------------------------------------- the deterministic models
@@ -1177,6 +1279,7 @@ def main() -> None:
     ap.add_argument("--clim", type=Path, help="the 500 hPa normal (release verify-clim-z500-v1)")
     ap.add_argument("--out", type=Path, required=True, help="the figures' directory")
     ap.add_argument("--have", type=Path, help="names of the files the database holds, one per line (verifydb.sh list)")
+    ap.add_argument("--countries", type=Path, help="the station sums by country (country_series.py)")
     a = ap.parse_args()
     style()
     a.out.mkdir(parents=True, exist_ok=True)
@@ -1186,6 +1289,7 @@ def main() -> None:
     manifest["rain"] = rain_figs(a.derived, a.out)
     manifest["rain_skill"] = rain_skill_figs(a.derived, a.out)
     manifest["bias"] = bias_figs(a.derived, a.out)
+    manifest["countries"] = country_figs(a.countries, a.out)
     manifest["scores"] = det_figs(a.derived, a.out)
     manifest["ensembles"] = ens_figs(a.derived, a.out)
     manifest["database"] = database(a.derived, a.have)

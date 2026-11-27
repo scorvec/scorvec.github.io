@@ -15,7 +15,8 @@ name: Model verification scores
 # anomaly correlation against ERA5 (verify-z500.yml) from its runs' scores. The page's scorecards and rain maps are
 # drawn here and the numbers of its line charts written, each score with its uncertainty (scripts/verify/verify_figs.py),
 # into the frames store, with their list, figs.json, and so are each station's series for the station map
-# (station_series.py).
+# (station_series.py) and the G20 countries' series from every run's station sums (country_series.py, a table kept
+# between nights).
 # A 24 h gauge total can fail quality control after its run joined the database: the ingest lists the failed totals
 # of the station-years it reads (release verify-gauge-qc, scripts/verify/gauge_qc.py), and the windows' gauge scores
 # are made from each run's gauge pairs (gauge_, ens-gauge_) without them.
@@ -111,6 +112,7 @@ jobs:
           scripts/verify/verifydb.sh fetch stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch gauge all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch stn 90 "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch ens-stn 30 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch rain 365 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-rel all "$RUNNER_TEMP/derived"
@@ -191,11 +193,40 @@ jobs:
         with:
           path: ${{ runner.temp }}/stseries
           key: verification-stseries-${{ hashFiles('scripts/verify/station_series.py') }}-${{ github.run_id }}
+      # every run's station sums by country (scripts/verify/country_series.py), kept between nights: a night reads only
+      # the runs the table lacks; a failure leaves the figures to go on without the country series
+      - name: Country table from earlier nights
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/countries
+          key: verification-countries-${{ hashFiles('scripts/verify/country_series.py') }}-
+          restore-keys: |
+            verification-countries-${{ hashFiles('scripts/verify/country_series.py') }}-
+      - name: Country table
+        id: countries
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/countries" "$RUNNER_TEMP/stnsums"
+          T="$RUNNER_TEMP/countries/countries.parquet"
+          names=$(python scripts/verify/country_series.py --list --table "$T" --have "$RUNNER_TEMP/have.txt")
+          missing=$(for n in $names; do [ -e "$RUNNER_TEMP/derived/$n" ] || echo "$n"; done)   # not fetched above
+          # shellcheck disable=SC2086  # the file names are meant to split
+          [ -z "$missing" ] || scripts/verify/verifydb.sh get "$RUNNER_TEMP/stnsums" $missing
+          python scripts/verify/country_series.py --table "$T" --derived "$RUNNER_TEMP/derived" "$RUNNER_TEMP/stnsums"
+          rm -rf "$RUNNER_TEMP/stnsums"
+      - name: Keep the country table for the next night
+        if: steps.countries.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/countries
+          key: verification-countries-${{ hashFiles('scripts/verify/country_series.py') }}-${{ github.run_id }}
       - name: Figures
         run: |
           pip install --quiet matplotlib==3.10.9 cartopy==0.25.0
           python scripts/verify/verify_figs.py --derived "$RUNNER_TEMP/derived" --clim "$RUNNER_TEMP/clim_z500_1p5.npz" \
-            --have "$RUNNER_TEMP/have.txt" \
+            --have "$RUNNER_TEMP/have.txt" --countries "$RUNNER_TEMP/countries/countries.parquet" \
             --out assets/verification/fig
       - name: Publish the figures
         env:

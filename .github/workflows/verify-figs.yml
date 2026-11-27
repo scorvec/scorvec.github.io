@@ -4,7 +4,8 @@ name: Verification figures
 # and rain maps (mverify_scores.windows), the ensembles' windows (ens_verify.py windows), the 500 hPa anomaly
 # correlations and scripts/verify/verify_figs.py, published and committed as the nightly (verification.yml) does. Half
 # an hour where the nightly takes hours, for a change to the figures; the nightly keeps doing it all every day. The
-# station series and the nightly's ten runs (scores.json, wind_dist.json) are the nightly's alone. Dispatch only. Its
+# station series and the nightly's ten runs (scores.json, wind_dist.json) are the nightly's alone; the countries'
+# table is the nightly's (its cache), brought up to date here without being kept. Dispatch only. Its
 # own concurrency group: in the nightly's, a dispatch would displace a nightly waiting its turn (a group keeps only its
 # newest pending run); run beside one, the later complete set of figures is the one the store keeps.
 on:
@@ -31,7 +32,7 @@ jobs:
           python-version: '3.11'
       - name: Install mverify
         # the nightly's pin (verification.yml)
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@5c33200a2af1787ce71b30b28aa4e984194bc564"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@3c2a458ad06427449178b779ba08425f875c4d94"
       - name: The database's files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,6 +41,7 @@ jobs:
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           for k in stats gauge ens-stats ens-rel ens-gauge acc; do scripts/verify/verifydb.sh fetch "$k" all "$D"; done
           scripts/verify/verifydb.sh fetch stn 90 "$D"
+          scripts/verify/verifydb.sh fetch ens-stn 30 "$D"
           scripts/verify/verifydb.sh fetch rain 365 "$D"
           # the gauge totals that have failed quality control (scripts/verify/gauge_qc.py)
           gh release download verify-gauge-qc -D "$D" -p 'failed_totals_*.parquet'
@@ -57,11 +59,31 @@ jobs:
           mverify_scores.windows(Path(sys.argv[1]))
           EOF
           python scripts/verify/ens_verify.py windows --derived "$RUNNER_TEMP/derived"
+      - name: Country table from the nightly
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/countries
+          key: verification-countries-${{ hashFiles('scripts/verify/country_series.py') }}-
+          restore-keys: |
+            verification-countries-${{ hashFiles('scripts/verify/country_series.py') }}-
+      - name: Country table
+        continue-on-error: true   # the figures go on without the country series
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |   # as the nightly
+          mkdir -p "$RUNNER_TEMP/countries" "$RUNNER_TEMP/stnsums"
+          T="$RUNNER_TEMP/countries/countries.parquet"
+          names=$(python scripts/verify/country_series.py --list --table "$T" --have "$RUNNER_TEMP/have.txt")
+          missing=$(for n in $names; do [ -e "$RUNNER_TEMP/derived/$n" ] || echo "$n"; done)
+          # shellcheck disable=SC2086  # the file names are meant to split
+          [ -z "$missing" ] || scripts/verify/verifydb.sh get "$RUNNER_TEMP/stnsums" $missing
+          python scripts/verify/country_series.py --table "$T" --derived "$RUNNER_TEMP/derived" "$RUNNER_TEMP/stnsums"
+          rm -rf "$RUNNER_TEMP/stnsums"
       - name: Figures
         run: |
           pip install --quiet matplotlib==3.10.9 cartopy==0.25.0
           python scripts/verify/verify_figs.py --derived "$RUNNER_TEMP/derived" --clim "$RUNNER_TEMP/clim_z500_1p5.npz" \
-            --have "$RUNNER_TEMP/have.txt" \
+            --have "$RUNNER_TEMP/have.txt" --countries "$RUNNER_TEMP/countries/countries.parquet" \
             --out assets/verification/fig
       - name: Publish the figures
         env:

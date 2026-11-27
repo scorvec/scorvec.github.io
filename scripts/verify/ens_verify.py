@@ -19,10 +19,12 @@ members of each case kept as one row (mverify.ensemble.summarise): ens-sfc-<m>_<
 ens-raob-<m>_ (radiosondes) and ens-rain-<m>_ (Stage IV cells), m = ifs, aifs, gefs, geps, written to --archive-out for
 the monthly releases verify-db-YYYY-MM (scripts/verify/verifydb.sh). One run of one model at a time, so a runner's disk
 holds any backfill. ``stats`` then sums each run's cases, on the sample every ensemble of the run has, into
-ens-stats_<init>.parquet (``run_stats``), once every ensemble that can still be fetched is in: GEPS only while HPFX
-keeps it (about 50 days). The run's gauge cases of that sample are kept beside them (ens-gauge_<init>.parquet,
-``gauge_cases``): a 24 h gauge total can fail quality control after its run was archived (gauge_qc.py), and
-``windows`` first makes the gauge sums again without the totals that have (``regauge``).
+ens-stats_<init>.parquet (``run_stats``) and, station by station for the bias maps and the country series, into
+ens-stn_<init>.parquet (``station_sums``), once every ensemble that can still be fetched is in: GEPS only while HPFX
+keeps it (about 50 days). A run summed before the station sums existed gets them alone. The run's gauge cases of that
+sample are kept beside them (ens-gauge_<init>.parquet, ``gauge_cases``): a 24 h gauge total can fail quality control
+after its run was archived (gauge_qc.py), and ``windows`` first makes the gauge sums again without the totals that
+have (``regauge``).
 
     python scripts/verify/ens_verify.py match --db obs.duckdb --model GEPS --inits 2026091600 2026092000 --work /tmp/e \\
         --have have.txt --archive-out db-new
@@ -51,6 +53,10 @@ RANK_BINS = 10  # rank histograms in tenths of the members' range (ensembles of 
 STAT_SUMS = ["n", "crps", "crps_oe", "se", "sse", "svar", "sov"]
 WINDOWS = (30, 90, 365, None)  # runs of a scorecard window (None: all), as the deterministic ones
 LEAD_GROUPS = (("days 1-3", 24, 72), ("days 4-7", 96, 168), ("days 8-15", 192, 360))  # rank and reliability
+# the station sums' leads, the single runs' (stn_): a run is matched once its day 15 is past, before most stations'
+# reports of its last days have reached GHCNh
+STN_LEADS = tuple(D.MAP_LEADS)
+STN_VARS = ("t2m", "td2m", "msl", "ws10")  # the station sums' variables: the surface layers of the station maps
 
 ECMWF = {
     "sfc": [("2t", "sfc", None), ("2d", "sfc", None), ("msl", "sfc", None), ("10u", "sfc", None), ("10v", "sfc", None)],
@@ -277,6 +283,23 @@ def run_stats(paths: dict[str, list[Path]], init: str) -> tuple[pd.DataFrame, pd
     return D._cat(stats).assign(init=when), D._cat(rel).assign(init=when)
 
 
+def station_sums(sfc: list[Path], init: str) -> pd.DataFrame:
+    """One run's ensemble means station by station, as mverify_scores.run_stats sums the single runs' (stn_): on the
+    kept cases that every ensemble of the run has (mverify.verify.common_sample), per model, station, variable
+    (STN_VARS) and lead (STN_LEADS), the count, the median position and the sums of the mean's error and its square.
+    The wind is the members' mean speed against the observed speed (ws10): the speed of the mean vector shrinks as the
+    members' directions part, a low bias of the averaging rather than of the model."""
+    from mverify.verify import common_sample
+
+    cols = ["model", "network", "variable", "station_id", "init", "lead_h", "valid_time", "lat", "lon", "obs", "mean"]
+    keep = [("kept", "==", True), ("variable", "in", list(STN_VARS)), ("lead_h", "in", [float(h) for h in STN_LEADS])]
+    c = common_sample(pd.concat([pd.read_parquet(f, columns=cols, filters=keep) for f in sfc], ignore_index=True))
+    err = c["mean"] - c["obs"]
+    g = c.assign(n=1, se=err, sse=err * err).groupby(["model", "network", "variable", "station_id", "lead_h"])
+    st = g[["lat", "lon"]].median().join(g[["n", "se", "sse"]].sum()).reset_index()
+    return st.assign(init=pd.to_datetime(init, format="%Y%m%d%H"))
+
+
 def gauge_cases(sfc: list[Path]) -> pd.DataFrame:
     """The gauge cases ``run_stats`` sums of a run's surface cases, one file per ensemble in ``sfc``: the kept ones
     every ensemble has, and none when an ensemble has no gauge case (its other cases then stand alone in the sample)."""
@@ -319,11 +342,15 @@ def expected(init: str, today: pd.Timestamp) -> list[str]:
 
 
 def ready(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
-    """The runs whose sums are due, with their ensembles: every ensemble that can still come is in, no sums yet."""
+    """The runs whose sums are due, with their ensembles: every ensemble that can still come is in and there are no
+    sums yet, or the sums are there without the station sums (a run summed before those existed)."""
     out = {}
     for init in sorted({n.split("_")[1][:10] for n in have if n.startswith("ens-sfc-")}):
         models = [m for m in ENSEMBLES if held(m, init, have)]
-        if f"ens-stats_{init}.parquet" not in have and set(expected(init, today)) <= set(models):
+        if f"ens-stats_{init}.parquet" in have:
+            if f"ens-stn_{init}.parquet" not in have:
+                out[init] = models
+        elif set(expected(init, today)) <= set(models):
             out[init] = models
     return out
 
@@ -331,9 +358,11 @@ def ready(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
 def stats(a) -> None:
     have = set(a.have.read_text().split()) if a.have and a.have.exists() else set()
     due = ready(have, pd.Timestamp.now(tz="UTC").tz_localize(None).normalize())
+    summed = {init for init in due if f"ens-stats_{init}.parquet" in have}  # the station sums alone are due
     if a.list:  # the files each due run's sums are made from, for the workflow to download
         for init, models in due.items():
-            print(init, *(n for k in ("sfc", "raob", "rain") for m in models if (n := file_of(k, m, init)) in have))
+            kinds = ("sfc",) if init in summed else ("sfc", "raob", "rain")
+            print(init, *(n for k in kinds for m in models if (n := file_of(k, m, init)) in have))
         return
     a.archive_out.mkdir(parents=True, exist_ok=True)
     for init, models in due.items():
@@ -343,11 +372,13 @@ def stats(a) -> None:
             k: [a.derived / file_of(k, m, init) for m in models if (a.derived / file_of(k, m, init)).exists()]
             for k in ("sfc", "raob", "rain")
         }
-        s, r = run_stats({k: v for k, v in paths.items() if v}, init)
-        D.write_sums(s, a.archive_out / f"ens-stats_{init}.parquet")
-        D.write_sums(r, a.archive_out / f"ens-rel_{init}.parquet")
-        D.write_gauges(gauge_cases(paths["sfc"]), a.archive_out, init, "ens-gauge")
-        print(f"{init}: sums of {', '.join(models)}", flush=True)
+        if init not in summed:
+            s, r = run_stats({k: v for k, v in paths.items() if v}, init)
+            D.write_sums(s, a.archive_out / f"ens-stats_{init}.parquet")
+            D.write_sums(r, a.archive_out / f"ens-rel_{init}.parquet")
+            D.write_gauges(gauge_cases(paths["sfc"]), a.archive_out, init, "ens-gauge")
+        D.write_sums(station_sums(paths["sfc"], init), a.archive_out / f"ens-stn_{init}.parquet")
+        print(f"{init}: {'station sums' if init in summed else 'sums'} of {', '.join(models)}", flush=True)
 
 
 # --------------------------------------------------------------------------- windows

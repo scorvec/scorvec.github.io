@@ -143,8 +143,12 @@ scorecard's tests do.</p>
 <section id="biasmaps">
 <h3>Bias maps</h3>
 <p>Each model's mean error (forecast less observed) of 2&nbsp;m temperature, dew point, sea-level pressure and 10&nbsp;m
-wind speed at the surface stations of the station map, over the newest 30 runs of the verification database, at days
-1, 3, 5, 7 and 10. The stations are smoothed onto a 1&deg; map: a cell's error in a run is its stations' errors
+wind speed at the surface stations, over the newest 30 runs of the verification database, at days 1, 3, 5, 7 and 10.
+The Models switch gives the single runs or the ensemble means: each ensemble's mean of its members, scored on the
+stations every ensemble of the run was matched to, its wind the members' mean speed (the speed of the mean wind would
+read low wherever the members' directions part). The ensembles stop at day 10 here too: a run joins the database once
+its day 15 has passed, before most stations' reports of its last days reach GHCNh. The stations are smoothed onto a
+1&deg; map: a cell's error in a run is its stations' errors
 weighted by distance (a Gaussian falling to 1/e at 300&nbsp;km, cut at 900&nbsp;km), and the cell is drawn only where
 the stations weigh as much as about three within 300&nbsp;km, so oceans and empty land stay blank.</p>
 <p>A cell's bias is the mean of its 30 run errors, tested with the scorecards' t-test and its allowance for runs that
@@ -154,6 +158,26 @@ the Benjamini&ndash;Hochberg procedure at a 10% false-discovery rate: filled con
 grey areas were tested and are within it. A station's error includes how well its site matches the model's grid box
 (a valley station under a model's smoothed hills reads cold), which the smoothing dilutes but cannot remove where one
 station stands alone. The maps are pictures made each night; a phone shows them one model at a time.</p>
+</section>
+
+<section id="countries">
+<h3>By country</h3>
+<p>The G20 countries' errors run by run: for one country, variable and day, each model's bias (forecast less observed)
+and RMSE over the country's surface stations in every 00Z run of the verification database, by the date the forecasts
+verify, as a 7-day running mean (a single run's error is mostly that day's weather). A station's country is the one
+GHCN files it under, the first two letters of its identifier. Every pair counts alike, so a country's figure leans to
+where its stations are dense. In each run the models of a kind meet the same stations, and the Models switch sets the
+single runs or the ensemble means (as on the bias maps) side by side. A variable is drawn for a country only where its
+median run has 10 stations or more; below that the line is a few stations' errors, so a country with fewer, Italy and
+Indonesia among them, is left out or shown for one kind only.</p>
+<p>After each name come the model's mean bias and RMSE over the days that every model with 95% of them has, so those
+compare on one sample; a model with fewer (GDPS and GEPS, which the database holds only from early September 2026)
+is averaged over its own days, which it counts. The mean bias is tested as a bias map's cell is, by a t-test on the
+days' series with its allowance for days that resemble the day before, and the tests of everything a country's view
+holds go through the Benjamini&ndash;Hochberg procedure at a 10% false-discovery rate: a dash marks a mean bias within
+the noise. The lines and the RMSE are drawn without a test, as measurements rather than claims of a difference. The
+single runs' wind is scored as on the rest of the page, its bias the error of the speed and its RMSE the vector
+wind's; the ensemble means' is the members' mean speed, for both.</p>
 </section>
 
 <section id="wind">

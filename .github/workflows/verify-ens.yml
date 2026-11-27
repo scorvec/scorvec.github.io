@@ -3,8 +3,8 @@ name: Ensemble verification database
 # Adds the ensembles' 00Z runs to the verification database (scripts/verify/ens_verify.py, scripts/verify/verifydb.sh):
 # IFS-ENS, AIFS-ENS, GEFS and GEPS, every member, against every GHCNh station, the radiosondes and Stage IV to day 15,
 # one row per case (ens-sfc-<m>_, ens-raob-<m>_, ens-rain-<m>_<init>.parquet), then each run's sums once every ensemble
-# that can still come is in (ens-stats_, ens-rel_). Runs the database holds are skipped, so a range can be dispatched
-# again after a failure.
+# that can still come is in (ens-stats_, ens-rel_, and station by station ens-stn_; a run summed before ens-stn_ existed
+# gets it alone). Runs the database holds are skipped, so a range can be dispatched again after a failure.
 #
 # Each day it catches up the runs 16 to 47 days old: a run's day 15 is observed once it is 16 days old, and HPFX keeps
 # GEPS about 50 days. Each Sunday it takes every run since the database's first (13 May 2026) that it still lacks, so a
@@ -167,7 +167,7 @@ jobs:
     needs: match
     if: ${{ !cancelled() }}   # also when there was nothing to match, or a chunk failed
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240   # a backfill of station sums: about 20 s a run
     steps:
       - uses: actions/checkout@v7
         with:
@@ -179,19 +179,24 @@ jobs:
       - name: Each due run's sums, one run at a time
         env:
           GH_TOKEN: ${{ github.token }}
+        # uploaded ten runs at a time: each upload lists the database first (a request per ten releases), which a
+        # backfill of a run at a time would spend on every run
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           python scripts/verify/ens_verify.py stats --list --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new" \
             > "$RUNNER_TEMP/due.txt"
           echo "$(wc -l < "$RUNNER_TEMP/due.txt") runs due"
+          n=0
           while read -r init files; do
             # shellcheck disable=SC2086  # the file names are meant to split
             scripts/verify/verifydb.sh get "$RUNNER_TEMP/cases" $files
             python scripts/verify/ens_verify.py stats --init "$init" --derived "$RUNNER_TEMP/cases" \
               --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
-            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
-            rm -rf "$RUNNER_TEMP"/cases "$RUNNER_TEMP"/db-new
+            rm -rf "$RUNNER_TEMP"/cases
+            n=$((n + 1))
+            if (( n % 10 == 0 )); then scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"; rm -rf "$RUNNER_TEMP"/db-new; fi
           done < "$RUNNER_TEMP/due.txt"
+          [ ! -d "$RUNNER_TEMP/db-new" ] || scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
 
   mirror:
     needs: stats
