@@ -47,7 +47,8 @@ def draw_members(ax, times, M, north: bool) -> None:
 
 def weekly_index(times, M, north: bool, start) -> dict:
     """Members whose first winter reversal falls in each forecast week, and how many have reversed by its end.
-    start: the forecast's start (a date or datetime); day d = the valid day d days after it."""
+    start: the forecast's start (a date or datetime); day d = the valid day d days after it. A week the series
+    ends one day short of (GEFS's daily means stop at day 34) is kept, with the day it ends on."""
     M = np.asarray(M, float)
     fr = first_reversal(times, M, north)
     day0 = start.date() if hasattr(start, "date") else start
@@ -55,13 +56,14 @@ def weekly_index(times, M, north: bool, start) -> dict:
     first_day = np.where(fr >= 0, day_of[np.maximum(fr, 0)], 10**6)
     weeks = []
     for a, b in WEEKS:
-        if day_of.max() < b:
+        end = min(b, int(day_of.max()))
+        if end < b - 1:
             break
         weeks.append(
             {
-                "days": [a, b],
-                "first": int(((first_day >= a) & (first_day <= b)).sum()),
-                "by_end": int((first_day <= b).sum()),
+                "days": [a, end],
+                "first": int(((first_day >= a) & (first_day <= end)).sum()),
+                "by_end": int((first_day <= end).sum()),
             }
         )
     return {"members": int(M.shape[1]), "weeks": weeks}

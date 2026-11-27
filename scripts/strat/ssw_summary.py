@@ -193,11 +193,12 @@ def extended_part(clim, now: pd.Timestamp) -> dict:
         init = pd.Timestamp(rv["init"].rstrip("Z"))
         if now - init > pd.Timedelta(days=EXT_AGE):
             continue
-        by = {tuple(w["days"]): w for w in rv["weeks"]}
+        by = {w["days"][0]: w for w in rv["weeks"]}  # a model's last week can end a day short (GEFS: day 34)
         row = {
             "init": f"{init:%Y-%m-%d %HZ}",
             "members": rv["members"],
-            "first": [by[w]["first"] if w in by else None for w in weeks],
+            "first": [by[a]["first"] if a in by else None for a, _ in weeks],
+            "ends": [by[a]["days"][1] if a in by else None for a, _ in weeks],
             "base_rate": base_rate(init, EXT_FIRST, weeks[-1][1]),
             "window": [
                 f"{init + pd.Timedelta(days=EXT_FIRST):%Y-%m-%d}",

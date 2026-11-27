@@ -497,7 +497,8 @@
             var c = v.heat_chance && v.heat_chance[i];  // GEFS, where the reforecast's calibrated chance has skill
             var h = heatOn && v.heat && v.heat[i] != null ? "<small>" + v.heat[i] + " with a heat-flux week"
               + (c != null ? ": " + pct(c) + " chance (normal " + pct(v.heat_normal) + ")" : "") + "</small>" : "";
-            return { h: (n == null ? "–" : n + " easterly") + h, v: n == null ? null : n / v.members };
+            var short = n != null && v.ends && v.ends[i] < E.weeks[i][1] ? " to day " + v.ends[i] : "";  // GEFS ends on day 34
+            return { h: (n == null ? "–" : n + " easterly" + short) + h, v: n == null ? null : n / v.members };
           }));
         }));
     }
