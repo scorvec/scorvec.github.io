@@ -38,7 +38,7 @@ SITE = "https://scorvec.com"
 
 DIRS = ("assets", "board", "data", "guides", "qbo", "skewt", "studies", "topics")
 ROOT_EXT = (".html", ".webp", ".jpg", ".png", ".svg", ".ico")
-ROOT_FILES = ("CNAME", "robots.txt", "sitemap.xml")
+ROOT_FILES = ("CNAME", "llms.txt", "robots.txt", "sitemap.xml")
 EXCLUDE = {
     "assets/verify/aifs_scores_v2.json",  # 12 MB of station scores: the input of scripts/verify, read by no page
 }

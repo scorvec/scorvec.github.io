@@ -1,0 +1,33 @@
+# Shawn Corvec: weather and climate diagnostics (scorvec.com)
+
+> Shawn Corvec is a US-based meteorologist and atmospheric scientist working on numerical weather
+> prediction, operational forecasting and the weather behind energy markets. This site holds his
+> publications, two original studies, and live diagnostics built from open model and observation
+> data, each with a methods page that states how the figure is made and how it is tested.
+
+## About the author
+- [About](https://scorvec.com/about.html): background and the data licences behind the site
+- [Resume](https://scorvec.com/resume.html)
+- [Publications](https://scorvec.com/research.html): peer-reviewed work on convection and physics
+  parameterization, orographic drag and vertical coordinates in the Canadian GEM model (Monthly
+  Weather Review, JAMES), and the tropical circulation of the mid-Pliocene (Climate of the Past)
+
+## Original studies
+- [Do AI weather models obey the conservation laws?](https://scorvec.com/aifs-aam-budget.html):
+  budget tests of ECMWF's data-driven ensemble against its physics ensemble, for angular momentum,
+  dry-air mass, water and energy
+- [Why the atmosphere spins up in El Niño](https://scorvec.com/torque-enso.html): how angular
+  momentum enters the atmosphere, mainly through a pressure difference across the Andes, from ERA5
+  1959-2026 and 41 CMIP6 models
+
+## Methods
+- [Methods hub](https://scorvec.com/guides/): how every figure on the site is made, including the
+  statistical tests and what is deliberately not shown
+- Guides: El Niño monitor, circulation, stratosphere, sudden stratospheric warming outlook, MJO,
+  tropical waves, atmospheric rivers, seasonal and subseasonal outlooks, model verification, world
+  ensemble maps
+
+## Explainers
+- [Explainers hub](https://scorvec.com/topics/): E-P flux, mountain torque, atmospheric angular
+  momentum, wave activity flux, eddy heat flux, sudden stratospheric warming, the Hadley cell, the
+  dynamic tropopause
