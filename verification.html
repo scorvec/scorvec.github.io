@@ -522,6 +522,17 @@ window.plotly = function () {
     <p class="note" id="lead-note"></p>
   </section>
 
+  <section class="card" id="regions-card" hidden>
+    <h2>One variable, region by region</h2>
+    <div class="controls">
+      <label>Variable<select id="rb-var"></select></label>
+      <label>Score<select id="rb-score"></select></label>
+      <label>Leads<select id="rb-leads"></select></label>
+    </div>
+    <div class="vfig" id="rb-fig" data-noswipe></div>
+    <p class="note" id="rb-note"></p>
+  </section>
+
   <section class="card" id="acc-card" hidden>
     <h2>500 hPa anomaly correlation</h2>
     <div class="controls">
@@ -1470,6 +1481,34 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       });
     };
     $("lead-card").hidden = !lvars.length;
+    // the same scores with a panel a region: one variable's bias, RMSE or RMSE against the IFS control by lead
+    const bv = $("rb-var"), bs = $("rb-score"), bl = $("rb-leads");
+    const SCORE = { bias: "Bias", rmse: "RMSE", pct: "RMSE against IFS control" };
+    const REGIONS = ["Global", "NH 20-90N", "Tropics 20S-20N", "SH 20-90S", "North America", "CONUS", "Europe"];
+    fill(bv, lvars, v => named[v]?.label || v);
+    bv.value = lv.value;
+    fill(bs, Object.keys(SCORE), k => SCORE[k]);
+    fill(bl, Object.keys(LEADS), k => LEADS[k]);
+    const byRegion = () => chart("rb-fig", [leadFile[bv.value]], d => {
+      const what = bs.value, u = unit(d.unit), panels = [], models = new Set();
+      $("rb-note").textContent = "";
+      for (const g of Object.keys(d.regions).sort((a, b) => REGIONS.indexOf(a) - REGIONS.indexOf(b))) {
+        let rows = leadRows(d.regions[g], bl.value);
+        if (!rows.us.length) rows = leadRows(d.regions[g], "all");
+        if (!rows.us.length || !scored(rows, what)) continue;
+        Object.keys(rows.models).forEach(m => models.add(m));
+        panels.push(leadPanel(rows, what, esc(g), { whiskers: false, dodge: 0 }));
+      }
+      if (!panels.length) return null;
+      const name = bv.selectedOptions[0]?.text || bv.value;
+      $("rb-note").textContent = `${what === "bias" ? `Bias, forecast less observed (${u})` : what === "rmse" ? `RMSE (${u})` : "RMSE against the IFS control (%)"}: ` +
+        `${name} against ${named[bv.value]?.truth || "the observations"}; ${span}.`;
+      return { label: `${SCORE[what]}, ${name}, by region`, panels, cols: 4, minWidth: 250, height: 250, legend: ordered(models).map(who),
+        keys: what === "rmse" ? [] : [zeroKey()] };
+    });
+    [bv, bs, bl].forEach(el => el.addEventListener("change", byRegion));
+    $("regions-card").hidden = !lvars.length;
+    byRegion();
     // how the error grows: the headline variables by lead in one region, upper air or surface, as a
     // percentage against the IFS control or as the RMSE itself
     const gr = $("gg-region"), gk = $("g-kind"), gv = $("g-view");
@@ -2373,6 +2412,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       ["scores", "Scorecard", "one model against another", "scores"],
       ["growth", "Headline variables", "error by day, eight variables", "growth-card", true],
       ["lead", "One variable", "RMSE and bias by day", "lead-card", true],
+      ["regions", "By region", "bias or RMSE by day, every region", "regions-card", true],
       ["acc", "500 hPa skill", "anomaly correlation", "acc-card", true],
       ["profiles", "Upper air", "error by pressure level", "profile-card", true],
       ["uppermaps", "Upper-air maps", "error by level, against ERA5 or an analysis", "uppermap-card", true],

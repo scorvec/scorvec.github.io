@@ -257,7 +257,7 @@
   <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › Model verification page</p>
   <h1>Methods: the model verification page</h1>
   <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="/verification.html">Open the model verification page</a></p>
-<nav class="toc" aria-label="Figures"><dl><dt>Days 1&ndash;10: single runs</dt><dd><a href="#summary">Summary</a><a href="#overview">Every model</a><a href="#scores">Scorecard</a><a href="#growth">Headline variables</a><a href="#lead">One variable</a><a href="#acc">500&nbsp;hPa skill</a><a href="#profiles">Upper air</a><a href="#uppermaps">Upper-air maps</a><a href="#stations">Station map</a><a href="#biasmaps">Bias maps</a><a href="#countries">By country</a><a href="#wind">Wind speed</a><a href="#rain">US rain scores</a><a href="#rainmaps">US rain maps</a></dd><dt>Days 1&ndash;15: ensembles</dt><dd><a href="#ens">Scorecard</a><a href="#enslead">Error and spread</a><a href="#ensrel">Probabilities</a></dd><dt>Weeks 1&ndash;5</dt><dd><a href="#weeks">GEFS and GEPS</a></dd><dt>Your own plots</dt><dd><a href="#builder">Plot builder</a><a href="#myregion">Your own region</a></dd><dt>AIFS single against AIFS-ENS member 0</dt><dd><a href="#aifs">Scorecard</a><a href="#aifs_lead">Scores by day</a><a href="#aifs_spectra">Power spectra</a><a href="#aifs_loop">Pressure and rain loop</a><a href="#aifs_z500">500 hPa height loop</a><a href="#aifs_t2m">2 m temperature loop</a></dd><dt>Data</dt><dd><a href="#database">The database</a></dd></dl></nav>
+<nav class="toc" aria-label="Figures"><dl><dt>Days 1&ndash;10: single runs</dt><dd><a href="#summary">Summary</a><a href="#overview">Every model</a><a href="#scores">Scorecard</a><a href="#growth">Headline variables</a><a href="#lead">One variable</a><a href="#regions">By region</a><a href="#acc">500&nbsp;hPa skill</a><a href="#profiles">Upper air</a><a href="#uppermaps">Upper-air maps</a><a href="#stations">Station map</a><a href="#biasmaps">Bias maps</a><a href="#countries">By country</a><a href="#wind">Wind speed</a><a href="#rain">US rain scores</a><a href="#rainmaps">US rain maps</a></dd><dt>Days 1&ndash;15: ensembles</dt><dd><a href="#ens">Scorecard</a><a href="#enslead">Error and spread</a><a href="#ensrel">Probabilities</a></dd><dt>Weeks 1&ndash;5</dt><dd><a href="#weeks">GEFS and GEPS</a></dd><dt>Your own plots</dt><dd><a href="#builder">Plot builder</a><a href="#myregion">Your own region</a></dd><dt>AIFS single against AIFS-ENS member 0</dt><dd><a href="#aifs">Scorecard</a><a href="#aifs_lead">Scores by day</a><a href="#aifs_spectra">Power spectra</a><a href="#aifs_loop">Pressure and rain loop</a><a href="#aifs_z500">500 hPa height loop</a><a href="#aifs_t2m">2 m temperature loop</a></dd><dt>Data</dt><dd><a href="#database">The database</a></dd></dl></nav>
 <section id="about">
 <h2>The page</h2>
 <p>NOAA's GFS, ECMWF's physics model (the IFS control, the single unperturbed run of the IFS), ECMWF's AI model (AIFS)
@@ -341,6 +341,14 @@ rate over the chart.</p>
 both have, and its bias, each pooling every observation and run at that lead. The whiskers are 95% intervals, and a
 marker of the percentage or the bias is filled where its test passes a 10% false-discovery rate over the chart; the
 note under the chart names the observations and the runs.</p>
+</section>
+
+<section id="regions">
+<h3>By region</h3>
+<p class="open"><a href="/verification.html#regions">Open this figure</a></p>
+<p>One variable's bias, RMSE or RMSE against the IFS control by lead, a panel for each region, from the same numbers as
+One variable. A marker of the bias or the percentage is filled where its test passes a 10% false-discovery rate over
+all the panels together; the intervals are left to One variable, where one region has the room for them.</p>
 </section>
 
 <section id="acc">
