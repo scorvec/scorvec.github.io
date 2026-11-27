@@ -447,7 +447,7 @@ window.STAGE = {
           a: {label: "Sector", items: [["atl","Atlantic, South America"],["afr","Africa, Indian Ocean"],["wpac","West Pacific, Australia"],["epac","East Pacific, Americas"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=tropconv_manifest.json&region=tropconv_" + a + "&regions=tropconv_" + a + "&start=0"; },
           about: "about-troughs", cap: function () { return "IFS-ENS 00Z; shaded where the members agree, trough axes drawn."; }},
-  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=6b832dbe26a2"; }, fit: false,
+  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202611270856"; }, fit: false,
           about: "about-gillrain", cap: function () { return "Gill model forced by IMERG rain and AIFS-ENS weeks 1–2."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS control"],["mslp_wind_gdps","GDPS"]]},
           frame: function (a) { return (function (r) { return r === "mslp_wind_gdps" ? "sst_anim.html?embed=1&manifest=gdps_wind_manifest.json&region=gdps_wind&regions=gdps_wind" : "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=" + r + "&regions=" + r; })(a || "mslp_wind"); }, about: "about-mslp", cap: function (a) { return /gdps/.test(a || "") ? "GDPS, one run, to day 10." : /aifs0|aifs1|hres/.test(a || "") ? "One run, days 1–15." : "Ensemble mean, days 0–15."; }},
