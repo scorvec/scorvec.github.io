@@ -6,8 +6,9 @@ page, and what the database holds (database: each model's runs).
 
   acc   The 500 hPa height anomaly correlation against ERA5 (z500_acc.py), for each region and window of runs
         (acc_<region>_<window>.json): a time series for each of six leads, as NCEP EMC draws it, a running mean of the
-        runs, and the window's mean by lead with its 95 % interval and each single run's paired difference from the
-        IFS control and each ensemble mean's from the IFS-ENS mean.
+        runs (and each run's own score), and the window's mean by lead with its 95 % interval and each single run's
+        paired difference from the IFS control and each ensemble mean's from the IFS-ENS mean, each kind of model on its
+        own window (the ensembles' newest runs reach day 15 days after the single runs' reach day 10).
   rain  Rain against Stage IV cell by cell (mverify_scores.rain_map): the ratio of the totals and the frequency
         biases at 1, 10 and 25 mm for each lead group, significant cells only (rain_<map>_<group>.webp: the four
         models side by side; rain_<map>_<group>_<model>.webp: one model, for a phone), and what the analysis gave over
@@ -29,6 +30,8 @@ page, and what the database holds (database: each model's runs).
         country, kind (single runs, ensemble means), variable and lead, each model's bias and RMSE by the date they
         verify as running means, and its means over the days every model has, the mean bias only where its test
         passes (country_<code>.json; country_series).
+  region  The surface stations' errors run by run on 2.5 degree cells, for the page's own-region view
+        (region_cells.py): region.json and region_<kind>_<variable>_<row>_<column>.json.
   scores  For each window of runs of the database: the scorecards (card_<window>_<region>_<model>_<reference>.webp),
         the RMSE and bias by lead of each variable in each region (lead_<window>_<variable>.json) and the error against
         pressure at a lead (profile_<window>_<quantity>.json).
@@ -48,7 +51,8 @@ a single series of ten runs it swings by +-0.3, and a high draw would cut the sa
 interval tenfold. A difference from the reference is the
 mean of the runs' paired differences (Geer 2016: unpaired intervals hide most of what separates two models) and is
 significant when its paired test passes Benjamini-Hochberg at a 10 % false-discovery rate over every model and lead of
-the figure.
+the figure. Beside each interval the JSON holds the p value of its test (bp: a bias of zero; pp: a ratio of one; bss_p:
+a Brier skill of zero) and the page applies the Benjamini-Hochberg cut over what one figure shows.
 
     python verify_figs.py --derived db --clim clim_z500_1p5.npz --out fig
 """
@@ -73,6 +77,7 @@ from scipy import stats
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 import house
 import mverify_scores as D
+import region_cells
 import z500_acc as Z
 
 DPI = 220
@@ -182,25 +187,44 @@ def ratio_resid(num: np.ndarray, den: np.ndarray) -> np.ndarray:
     return num - num.sum() / den.sum() * den if den.sum() > 0 else num[:0]
 
 
-def ratio_ci(
-    num: np.ndarray, den: np.ndarray, rho: float, level: float = 0.95, log: bool = False
-) -> tuple[float, float, float]:
-    """A pooled score sum(num) / sum(den) over runs (in run order) and its interval: the ratio estimator's variance
-    from each run's residual num - R den (a run is a cluster of cases that share its weather), inflated for the lag-1
-    autocorrelation rho (pooled_rho). With ``log`` the interval is taken on log R (delta method), for a score that
-    cannot go below zero (a mean squared error, a CRPS, a ratio of two): it stays above zero and is wider above."""
+def ratio_se(num: np.ndarray, den: np.ndarray, rho: float) -> tuple[float, float, int]:
+    """A pooled score R = sum(num) / sum(den) over runs (in run order), its standard error and the runs: the ratio
+    estimator's variance from each run's residual num - R den (a run is a cluster of cases that share its weather),
+    inflated for the lag-1 autocorrelation rho (pooled_rho). NaN from fewer than three runs."""
     ok = np.isfinite(num) & np.isfinite(den) & (den > 0)
     num, den = num[ok], den[ok]
     if len(num) < 3 or den.sum() <= 0:
-        return float("nan"), float("nan"), float("nan")
+        return float("nan"), float("nan"), len(num)
     r = num.sum() / den.sum()
     d = num - r * den
     n = len(d)
-    se = np.sqrt(n / (n - 1) * (d**2).sum()) / den.sum() * np.sqrt(n / n_eff(n, rho))
+    return float(r), float(np.sqrt(n / (n - 1) * (d**2).sum()) / den.sum() * np.sqrt(n / n_eff(n, rho))), n
+
+
+def ratio_ci(
+    num: np.ndarray, den: np.ndarray, rho: float, level: float = 0.95, log: bool = False
+) -> tuple[float, float, float]:
+    """A pooled score sum(num) / sum(den) and its interval (``ratio_se``). With ``log`` the interval is taken on log R
+    (delta method), for a score that cannot go below zero (a mean squared error, a CRPS, a ratio of two): it stays
+    above zero and is wider above."""
+    r, se, n = ratio_se(num, den, rho)
+    if not np.isfinite(r):
+        return float("nan"), float("nan"), float("nan")
     h = t_crit(n, level) * se
     if log and r > 0:
         return float(r), float(r * np.exp(-h / r)), float(r * np.exp(h / r))
     return float(r), float(r - h), float(r + h)
+
+
+def ratio_p(num: np.ndarray, den: np.ndarray, rho: float, null: float, log: bool = False) -> float:
+    """The two-sided p value of the test behind ``ratio_ci``'s interval, of a pooled score equal to ``null``: t on the
+    runs less one degrees of freedom, on log R with ``log`` (a ratio of two scores against 1). The page passes these
+    through Benjamini-Hochberg over each figure, which an interval alone cannot be."""
+    r, se, n = ratio_se(num, den, rho)
+    if not (np.isfinite(r) and se > 0) or (log and (r <= 0 or null <= 0)):
+        return float("nan")
+    t = (np.log(r) - np.log(null)) / (se / r) if log else (r - null) / se
+    return float(2 * stats.t.sf(abs(t), n - 1))
 
 
 def run_rho(s: pd.DataFrame, num: str, den: str, by: list[str]) -> dict:
@@ -228,14 +252,16 @@ def dump(data: dict, path: Path) -> str:
     return path.name
 
 
-def against(w: pd.DataFrame, m: str, ref: str, rho: float, root: bool) -> tuple[float, float, float]:
-    """``m``'s score against ``ref``'s in % with its interval, on the runs both have (``w``: runs x models, each run's
-    summed score, in run order): the ratio of the two pooled scores with each run a cluster (``ratio_ci`` on its
-    logarithm), its square root for squared errors (``root``: an RMSE from the sums of squares)."""
+def against(w: pd.DataFrame, m: str, ref: str, rho: float, root: bool) -> tuple[float, float, float, float]:
+    """``m``'s score against ``ref``'s in % with its interval and the p value of its test, on the runs both have (``w``:
+    runs x models, each run's summed score, in run order): the ratio of the two pooled scores with each run a cluster
+    (``ratio_ci`` and ``ratio_p`` on its logarithm), its square root for squared errors (``root``: an RMSE from the
+    sums of squares)."""
     if m not in w or ref not in w or len(w := w[[m, ref]].dropna()) < 3:
-        return float("nan"), float("nan"), float("nan")
-    ratio = np.clip(ratio_ci(w[m].to_numpy(float), w[ref].to_numpy(float), rho, log=True), 0, None)
-    return tuple(100 * ((np.sqrt(ratio) if root else ratio) - 1))
+        return float("nan"), float("nan"), float("nan"), float("nan")
+    a, b = w[m].to_numpy(float), w[ref].to_numpy(float)
+    ratio = np.clip(ratio_ci(a, b, rho, log=True), 0, None)
+    return (*(100 * ((np.sqrt(ratio) if root else ratio) - 1)), ratio_p(a, b, rho, 1.0, log=True))
 
 
 # --------------------------------------------------------------------------- anomaly correlation
@@ -278,6 +304,7 @@ def series_data(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp) -> 
         smooth = x.rolling(SMOOTH_DAYS, center=True, min_periods=SMOOTH_DAYS // 2 + 1).mean()
         models[m] = {
             "acc": nums(smooth.to_numpy()),
+            "raw": nums(x.to_numpy()),  # each day's own run, for the page's run-by-run view
             "mean": num(np.tanh(np.arctanh(np.clip(on.dropna().to_numpy(), -0.9999, 0.9999)).mean())),
             "days": None if m in full else int(on.notna().sum()),
         }
@@ -287,7 +314,8 @@ def series_data(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp) -> 
 def lead_data(wide: pd.DataFrame, models: list[str]) -> dict:
     """The window's mean anomaly correlation by lead with its interval (through Fisher's z), and each model's paired
     difference from the IFS control (the single runs) or the IFS-ENS mean (the ensemble means), with its interval and
-    whether its paired test passes Benjamini-Hochberg at FDR_Q over every model and lead of the two."""
+    whether its paired test passes Benjamini-Hochberg at FDR_Q over every model and lead of the figure (``wide`` holds
+    one kind of model: acc_figs)."""
     from mverify.significance import fdr, paired_test
 
     z = np.arctanh(wide.clip(-0.9999, 0.9999))
@@ -319,23 +347,35 @@ def acc_figs(derived: Path, clim: Path, out: Path) -> dict:
     t = Z.table(derived, np.load(clim)["z500"])
     t["init"], t["valid_time"] = pd.to_datetime(t["init"]), pd.to_datetime(t["valid_time"])
     t = t[t["init"] >= pd.to_datetime(Z.START, format="%Y%m%d%H")]  # the verification database's runs, as the page's
+    # each kind its own window: the ensembles reach day 15, so their newest runs are scored days after the single runs'
+    kinds = {"single": t[t["model"].isin(list(Z.DET))], "means": t[t["model"].isin(list(Z.E.ENSEMBLES))]}
     manifest = {}
     for region in Z.REGIONS:
         for w in WINDOWS:
-            wide, models, span = acc_window(t, region, w)
-            if len(wide) < 10 or (w and len(wide) < w * D.WINDOW_SHARE):
+            leads, spans, starts = {"mean": {}, "diff": {}}, {}, []
+            for kind, tk in kinds.items():
+                wide, models, span = acc_window(tk, region, w)
+                if len(wide) < 10 or (w and len(wide) < w * D.WINDOW_SHARE):
+                    continue
+                got = lead_data(wide, models)
+                leads["mean"] |= got["mean"]
+                leads["diff"][kind] = got["diff"][kind]
+                spans[kind] = span
+                starts.append(wide.index.min())
+                print(f"acc {region}_{name_of(w)} {kind}: {span['runs']} runs, {', '.join(models)}", flush=True)
+            if not spans:
                 continue
             key = f"{region}_{name_of(w)}"
-            start = wide.index.min() + pd.Timedelta(days=1)
+            start = min(starts) + pd.Timedelta(days=1)
             data = {
-                "window": span,
+                "window": spans.get("single") or spans["means"],
+                "windows": spans,
                 "useful": USEFUL,
                 "smooth_days": SMOOTH_DAYS,
                 "series": {str(day): d for day in SERIES_DAYS if (d := series_data(t, region, day, start))},
-                "lead": lead_data(wide, models),
+                "lead": leads,
             }
-            manifest[key] = {"window": span, "data": dump(data, out / f"acc_{key}.json")}
-            print(f"acc {key}: {span['runs']} runs, {', '.join(models)}", flush=True)
+            manifest[key] = {"window": data["window"], "data": dump(data, out / f"acc_{key}.json")}
     return manifest
 
 
@@ -934,9 +974,10 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
 
 def pooled(d: pd.DataFrame, rho: tuple[float, float]) -> tuple:
     """RMSE and bias of one model's per-run sums (in run order), each with its interval (``ratio_ci``; rho, the lead's
-    autocorrelations of the squared and the plain errors, det_rho)."""
+    autocorrelations of the squared and the plain errors, det_rho), and the p value of a bias of zero (``ratio_p``)."""
     mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float), rho[0], log=True)
-    return (*np.sqrt(np.clip(mse, 0, None)), *ratio_ci(d["se"].to_numpy(float), d["n"].to_numpy(float), rho[1]))
+    se, n = d["se"].to_numpy(float), d["n"].to_numpy(float)
+    return (*np.sqrt(np.clip(mse, 0, None)), *ratio_ci(se, n, rho[1]), ratio_p(se, n, rho[1], 0.0))
 
 
 def det_rho(s: pd.DataFrame) -> dict:
@@ -1016,7 +1057,7 @@ def card_figure(score: pd.DataFrame, per: pd.DataFrame, order: list[str], a: str
     return save(fig, path)
 
 
-SCORE_KEYS = ("rmse", "rlo", "rhi", "bias", "blo", "bhi")
+SCORE_KEYS = ("rmse", "rlo", "rhi", "bias", "blo", "bhi", "bp")  # bp: the bias's p value
 MIN_PAIRS = 100  # pairs of forecast and observation a model needs over the window before a score of it is published
 
 
@@ -1030,8 +1071,9 @@ def sampled(g: pd.DataFrame, by: str) -> pd.DataFrame:
 def along(g: pd.DataFrame, by: str, at: list, models: list[str], rho) -> dict:
     """Each model's RMSE and bias with their 95 % intervals (``pooled``) at each value ``at`` of the column ``by`` (a
     variable's leads, a profile's levels), from one variable or quantity and region's per-run sums ``g``; and for
-    every model but the IFS control its RMSE against the control's in % (``against``). ``rho(x)`` gives the pair of
-    autocorrelations at x (det_rho)."""
+    every model but the IFS control its RMSE against the control's in % (``against``), each test's p value beside
+    (bp, pp) for the page's Benjamini-Hochberg over a figure. ``rho(x)`` gives the pair of autocorrelations at x
+    (det_rho)."""
     sse = {x: d.pivot_table(index="init", columns="model", values="sse") for x, d in g.groupby(by)}
     blank = (float("nan"),) * len(SCORE_KEYS)
     out = {}
@@ -1041,8 +1083,8 @@ def along(g: pd.DataFrame, by: str, at: list, models: list[str], rho) -> dict:
             continue
         out[m] = dict(zip(SCORE_KEYS, map(nums, zip(*(rows.get(x, blank) for x in at), strict=True)), strict=True))
         if REF in models and m != REF:
-            pct = [against(sse[x], m, REF, rho(x)[0], root=True) if x in sse else blank[:3] for x in at]
-            out[m] |= dict(zip(("pct", "plo", "phi"), map(nums, zip(*pct, strict=True)), strict=True))
+            pct = [against(sse[x], m, REF, rho(x)[0], root=True) if x in sse else blank[:4] for x in at]
+            out[m] |= dict(zip(("pct", "plo", "phi", "pp"), map(nums, zip(*pct, strict=True)), strict=True))
     return out
 
 
@@ -1156,7 +1198,7 @@ def group_rho(rho: dict, a: int, b: int) -> float:
 def ens_lead_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
     """One variable and region: each ensemble's CRPS and the spread of its members over the error of its mean by lead,
     with their 95 % intervals, and for every ensemble but the IFS-ENS its CRPS against the IFS-ENS's in %
-    (``against``)."""
+    (``against``) with the p value of its test (pp)."""
     hours = sorted(int(h) for h in g["lead_h"].unique())
     crps = {h: d.pivot_table(index="init", columns="model", values="crps") for h, d in g.groupby("lead_h")}
     out = {"leads": hours, "models": {}}
@@ -1174,7 +1216,7 @@ def ens_lead_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
         out["models"][m] = dict(zip(("crps", "clo", "chi", "ratio", "rlo", "rhi"), map(nums, cols), strict=True))
         if "IFS-ENS" in models and m != "IFS-ENS":
             pct = [against(crps[h], m, "IFS-ENS", rho[h], root=False) for h in hours]
-            out["models"][m] |= dict(zip(("pct", "plo", "phi"), map(nums, zip(*pct, strict=True)), strict=True))
+            out["models"][m] |= dict(zip(("pct", "plo", "phi", "pp"), map(nums, zip(*pct, strict=True)), strict=True))
     return out
 
 
@@ -1199,9 +1241,11 @@ def ens_rank_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
 def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
     """One variable, threshold and region's reliability for each lead group: the observed frequency of the event in
     each forecast probability bin of MIN_BIN cases or more, with its 95 % interval, against the bin's mean forecast
-    probability, and the Brier skill score against the sample's base rate. A model's curve needs MIN_BIN events and
-    MIN_BIN non-events in the group: from fewer, the frequencies and the skill score are a few stations' luck. A bin
-    where the event never came, or always did, has no spread between runs to take an interval from, so it has none."""
+    probability, and the Brier skill score against the sample's base rate with its interval and the p value of a skill
+    of zero (the Brier score a ratio over the runs, ``ratio_ci`` and ``ratio_p`` against the base rate's score). A
+    model's curve needs MIN_BIN events and MIN_BIN non-events in the group: from fewer, the frequencies and the skill
+    score are a few stations' luck. A bin where the event never came, or always did, has no spread between runs to take
+    an interval from, so it has none."""
     out = {}
     for label, a, b in Z.E.LEAD_GROUPS:
         gg = g[g["lead_h"].between(a, b)]
@@ -1212,7 +1256,12 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
             n, o = gm["n"].sum(), gm["o"].sum()
             if min(o, n - o) < MIN_BIN:
                 continue
-            bss = 1 - gm["bs"].sum() / n / (o / n * (1 - o / n))
+            clim = o / n * (1 - o / n)  # the Brier score of always forecasting the base rate
+            per_run = gm.groupby("init")[["bs", "n"]].sum()
+            bs, bs_lo, bs_hi = ratio_ci(
+                per_run["bs"].to_numpy(float), per_run["n"].to_numpy(float), group_rho(rho, a, b)
+            )
+            bss_p = ratio_p(per_run["bs"].to_numpy(float), per_run["n"].to_numpy(float), group_rho(rho, a, b), clim)
             pts = []
             for _, d in gm.groupby("bin"):
                 if d["n"].sum() >= MIN_BIN:
@@ -1225,8 +1274,9 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
                     pts.append((per["p"].sum() / per["n"].sum(), f, lo, hi))
             if pts:
                 p, f, lo, hi = zip(*pts, strict=True)
-                out.setdefault(label, {})[m] = {"bss": num(bss, 3), "p": nums(p), "o": nums(f), "lo": nums(lo),
-                                                "hi": nums(hi)}  # fmt: skip
+                out.setdefault(label, {})[m] = {"bss": num(1 - bs / clim, 3), "bss_lo": num(1 - bs_hi / clim, 3),
+                                                "bss_hi": num(1 - bs_lo / clim, 3), "bss_p": num(bss_p, 3),
+                                                "p": nums(p), "o": nums(f), "lo": nums(lo), "hi": nums(hi)}  # fmt: skip
     return out
 
 
@@ -1290,6 +1340,7 @@ def main() -> None:
     manifest["rain_skill"] = rain_skill_figs(a.derived, a.out)
     manifest["bias"] = bias_figs(a.derived, a.out)
     manifest["countries"] = country_figs(a.countries, a.out)
+    manifest["region"] = region_cells.region_figs(a.derived, a.out)
     manifest["scores"] = det_figs(a.derived, a.out)
     manifest["ensembles"] = ens_figs(a.derived, a.out)
     manifest["database"] = database(a.derived, a.have)

@@ -41,7 +41,7 @@ jobs:
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           for k in stats gauge ens-stats ens-rel ens-gauge acc; do scripts/verify/verifydb.sh fetch "$k" all "$D"; done
           scripts/verify/verifydb.sh fetch stn 90 "$D"
-          scripts/verify/verifydb.sh fetch ens-stn 30 "$D"
+          scripts/verify/verifydb.sh fetch ens-stn 90 "$D"
           scripts/verify/verifydb.sh fetch rain 365 "$D"
           # the gauge totals that have failed quality control (scripts/verify/gauge_qc.py)
           gh release download verify-gauge-qc -D "$D" -p 'failed_totals_*.parquet'

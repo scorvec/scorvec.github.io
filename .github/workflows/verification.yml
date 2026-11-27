@@ -15,8 +15,9 @@ name: Model verification scores
 # anomaly correlation against ERA5 (verify-z500.yml) from its runs' scores. The page's scorecards and rain maps are
 # drawn here and the numbers of its line charts written, each score with its uncertainty (scripts/verify/verify_figs.py),
 # into the frames store, with their list, figs.json, and so are each station's series for the station map
-# (station_series.py) and the G20 countries' series from every run's station sums (country_series.py, a table kept
-# between nights).
+# (station_series.py), the G20 countries' series from every run's station sums (country_series.py, a table kept
+# between nights) and the stations' errors run by run on 2.5 degree cells for the page's own-region view
+# (region_cells.py).
 # A 24 h gauge total can fail quality control after its run joined the database: the ingest lists the failed totals
 # of the station-years it reads (release verify-gauge-qc, scripts/verify/gauge_qc.py), and the windows' gauge scores
 # are made from each run's gauge pairs (gauge_, ens-gauge_) without them.
@@ -112,7 +113,7 @@ jobs:
           scripts/verify/verifydb.sh fetch stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch gauge all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch stn 90 "$RUNNER_TEMP/derived"
-          scripts/verify/verifydb.sh fetch ens-stn 30 "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch ens-stn 90 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch rain 365 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-rel all "$RUNNER_TEMP/derived"
