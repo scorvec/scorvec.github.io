@@ -1,14 +1,9 @@
 {
- "generated": "2026-11-27 20:02 UTC",
+ "generated": "2026-11-27 21:21 UTC",
  "acc": {
   "NH_30": {
    "window": {
-    "left_out": {
-     "AIFS-ENS": 25,
-     "GEFS": 25,
-     "GEPS": 25,
-     "IFS-ENS": 25
-    },
+    "left_out": {},
     "runs": 30,
     "first": "2026101200",
     "last": "2026111100"
@@ -18,11 +13,7 @@
   "NH_90": {
    "window": {
     "left_out": {
-     "AIFS-ENS": 85,
-     "GDPS": 65,
-     "GEFS": 85,
-     "GEPS": 57,
-     "IFS-ENS": 85
+     "GDPS": 65
     },
     "runs": 90,
     "first": "2026081300",
@@ -33,23 +24,17 @@
   "NH_all": {
    "window": {
     "left_out": {
-     "GDPS": 65,
-     "GEPS": 57
+     "GDPS": 65
     },
-    "runs": 177,
+    "runs": 182,
     "first": "2026051300",
-    "last": "2026110600"
+    "last": "2026111100"
    },
    "data": "acc_NH_all.json"
   },
   "SH_30": {
    "window": {
-    "left_out": {
-     "AIFS-ENS": 25,
-     "GEFS": 25,
-     "GEPS": 25,
-     "IFS-ENS": 25
-    },
+    "left_out": {},
     "runs": 30,
     "first": "2026101200",
     "last": "2026111100"
@@ -59,11 +44,7 @@
   "SH_90": {
    "window": {
     "left_out": {
-     "AIFS-ENS": 85,
-     "GDPS": 65,
-     "GEFS": 85,
-     "GEPS": 57,
-     "IFS-ENS": 85
+     "GDPS": 65
     },
     "runs": 90,
     "first": "2026081300",
@@ -74,12 +55,11 @@
   "SH_all": {
    "window": {
     "left_out": {
-     "GDPS": 65,
-     "GEPS": 57
+     "GDPS": 65
     },
-    "runs": 177,
+    "runs": 182,
     "first": "2026051300",
-    "last": "2026110600"
+    "last": "2026111100"
    },
    "data": "acc_SH_all.json"
   }
@@ -1441,6 +1421,9 @@
    168,
    240
   ]
+ },
+ "region": {
+  "file": "region.json"
  },
  "scores": {
   "10": {
