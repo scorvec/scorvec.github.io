@@ -256,7 +256,7 @@
     <div id="dailyChart" class="plot" style="height:440px"></div>
     <p class="note" id="dailyNote" style="margin-top:0.4rem"></p>
     <div class="img-wrap" id="dailyFallback" hidden>
-      <img src="assets/sst/daily_indices.webp?v=f47ae7180fd2" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
+      <img src="assets/sst/daily_indices.webp?v=522730401f28" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
     </div>
     </div>
   </div>
@@ -445,23 +445,23 @@ window.STAGE = {
           cap: function (a) { return {anomaly: "NOAA OISST v2.1, last 90 days, against 1991–2020.", absolute: "NOAA OISST v2.1, last 90 days.", relative: "Anomaly less the global mean.", tropical_rel: "Anomaly less the 20°S–20°N mean."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily NOAA OISST v2.1 box means; click the legend for other regions."; }},
-  onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=f47ae7180fd2"; }, about: "about-onironi", fit: false,
+  onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=522730401f28"; }, about: "about-onironi", fit: false,
           cap: function () { return "CPC solid; our OISST estimate hatched, for seasons CPC has not reached. " + '<span class="estoff">' + (window.ENSO_EST_OFF || "") + "</span>"; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","Atlantic indices"]]},
-          img: function (a) { return "assets/sst/" + a + "_daily.webp?v=f47ae7180fd2"; }, about: "about-beyond",
+          img: function (a) { return "assets/sst/" + a + "_daily.webp?v=522730401f28"; }, about: "about-beyond",
           cap: function (a) { return {pdo: "Daily, OISST on the ERSST pattern.", iod: "Daily, Saji boxes.", satl: "Daily ATL3, TSA, TNA and the South Atlantic dipole."}[a]; }},
   mur: {label: "1 km satellite SST: cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
           cap: function () { return "NASA JPL MUR, 1 km, one frame a day since the onset."; }},
-  mur34: {label: "1 km satellite Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=f47ae7180fd2"; }, about: "about-mur34", fit: false,
+  mur34: {label: "1 km satellite Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=522730401f28"; }, about: "about-mur34", fit: false,
           cap: function () { return "MUR against OISST."; }},
   ir: {label: "Infrared satellite loop", a: {label: "Region", items: [["pacsat","Tropical Pacific"],["samsat","South & Central America"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=" + a + "_manifest.json&region=" + a; },
           ratio: function (a) { return a === "samsat" ? "1454/1587" : "1259/700"; }, about: "about-ir",
           cap: function (a) { return "Hourly infrared composite."; }},
-  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202611272047"; }, about: "about-soirec", fit: false,
+  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=522730401f28"; }, about: "about-soirec", fit: false,
           cap: function () { return "LongPaddock monthly and daily SOI, 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
-          img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=f47ae7180fd2"; }, about: "about-mei", fit: false,
+          img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=522730401f28"; }, about: "about-mei", fit: false,
           cap: function (a) { return {nowcast: "Daily estimate of NOAA's MEI.v2.", analogs: "Past events with the closest MEI path.", history: "Against the full MEI record.", validation: "Against each published value."}[a]; }},
   olr: {label: "OLR Hovmöller (satellite proxy)", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
           cap: function () { return "Low OLR (yellow to red) deep convection; blue suppressed."; }},
@@ -469,12 +469,12 @@ window.STAGE = {
           cap: function () { return "OLR anomaly in the Wheeler–Kiladis bands."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
           frame: function (a) { return a === "map" ? "sst_anim.html?embed=1&manifest=okelvin_manifest.json&region=okelvin" : null; },
-          img: function () { return "assets/sst/ocean_kelvin.webp?v=202611272047"; }, ratio: function () { return "1652/560"; },
+          img: function () { return "assets/sst/ocean_kelvin.webp?v=522730401f28"; }, ratio: function () { return "1652/560"; },
           about: "about-okelvin", fit: false,
           cap: function (a) { return a === "map" ? "Satellite altimetry, last 200 days; K marks a crest, red warm, blue cold." : "Satellite altimetry along the equator."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
           frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=manifest"; },
-          img: function () { return "assets/sst/kelvin_hov.webp?v=202611272047"; }, ratio: function () { return "1652/560"; },
+          img: function () { return "assets/sst/kelvin_hov.webp?v=522730401f28"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
           cap: function (a) { return a === "hov" ? "Last 45 days of analyses, then AIFS-ENS to day 15." : "Ten days of analyses, then AIFS-ENS to day 15; K marks a crest."; }},
   trackers: {label: "Kelvin and Rossby wave trackers", img: function () { return "assets/sst/wave_tracker.webp"; }, bust: "hourly", about: "about-trackers", fit: false,
@@ -484,7 +484,7 @@ window.STAGE = {
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
           cap: function () { return "Westerly bursts red, trade winds blue."; }},
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
-          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202611272047" : "assets/sst/eqsoi_forecast.webp?v=202611272047"; }, bust: "hourly",
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=522730401f28" : "assets/sst/eqsoi_forecast.webp?v=522730401f28"; }, bust: "hourly",
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
           cap: function (a) { return a === "hourly" ? "Hourly METARs, LongPaddock 1887–1989 base." : a === "forecast" ? "AIFS-ENS and IFS-ENS, member by member." : "CPC monthly, then the ensembles' daily forecast; negative favours El Niño."; }},
   soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
@@ -493,14 +493,14 @@ window.STAGE = {
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
           about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly wind at Tarawa and Kiritimati." : "This year against past El Niño onset years."; }},
   wind10: {label: "Equatorial 10 m wind forecast", a: {label: "Runs", items: [["ens","Ensemble means"],["det","Single runs"]]},
-          img: function (a) { return a === "det" ? "assets/sst/eq_wind_hovmoller_det.webp?v=202611272047" : "assets/sst/eq_wind_hovmoller.webp?v=202611272047"; }, about: "about-wind10",
+          img: function (a) { return a === "det" ? "assets/sst/eq_wind_hovmoller_det.webp?v=522730401f28" : "assets/sst/eq_wind_hovmoller.webp?v=522730401f28"; }, about: "about-wind10",
           cap: function (a) { return a === "det" ? "Single runs: AIFS-ENS member 0, AIFS single, IFS control, GDPS." : "AIFS-ENS and IFS-ENS ensemble means to day 15."; }},
   subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-subtemp",
           cap: function (a) { return a === "equatorial" ? "TAO/TRITON, 5-day mean; 20 °C isotherm marked." : "Anomaly less each depth's 1991–2020 trend."; }},
-  hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=f47ae7180fd2"; }, about: "about-hc", fit: false,
+  hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=522730401f28"; }, about: "about-hc", fit: false,
           cap: function () { return "Eight TAO moorings; dashed where fewer than six report."; }},
-  xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=f47ae7180fd2"; }, about: "about-xsec", fit: false,
+  xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=522730401f28"; }, about: "about-xsec", fit: false,
           cap: function () { return "This week beside the same week of 1997, 2015 and 2023."; }},
   cur_map: {label: "Surface currents", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_map_manifest.json&region=eq_cur_map"; }, about: "about-cur_map",
           cap: function () { return "Copernicus Marine analysis."; }},
@@ -509,58 +509,58 @@ window.STAGE = {
   cur_hov: {label: "Surface current Hovmöller", img: function () { return "assets/sst/eq_current_hov.webp"; }, bust: "hourly", about: "about-cur_hov", fit: false,
           cap: function () { return "Copernicus Marine analysis, along the equator."; }},
   imp_reg: {label: "ENSO regression maps", a: IMP_V, b: IMP_S, c: {label: "Source", items: [["cmip6","CMIP6, 16 models"],["obs","Observed"]]},
-          img: function (a, b, c) { return "assets/sst/enso_imp_reg_" + a + "_" + b + "_" + c + ".webp?v=f47ae7180fd2"; }, about: "about-imp_reg", fit: false,
+          img: function (a, b, c) { return "assets/sst/enso_imp_reg_" + a + "_" + b + "_" + c + ".webp?v=522730401f28"; }, about: "about-imp_reg", fit: false,
           cap: function (a, b, c) { return (c === "obs" ? (a === "pr" ? "GPCP" : "ERA5") : "CMIP6, 429 members") + "; significant only."; }},
   imp_comp: {label: "ENSO composites by event class (CMIP6)", a: IMP_V, b: IMP_S,
           c: {label: "Class", items: [["en","El Niño"],["sen","Strong"],["super","Super"],["ln","La Niña"],["sln","Strong La Niña"]]},
-          img: function (a, b, c) { return "assets/sst/enso_imp_comp_" + a + "_" + b + "_" + c + ".webp?v=f47ae7180fd2"; }, about: "about-imp_comp", fit: false,
+          img: function (a, b, c) { return "assets/sst/enso_imp_comp_" + a + "_" + b + "_" + c + ".webp?v=522730401f28"; }, about: "about-imp_comp", fit: false,
           cap: function (a, b) { return "CMIP6; shaded where the models robustly agree."; }},
   imp_obs: {label: "Observed ENSO composites", a: IMP_V, b: IMP_S, c: {label: "Class", items: [["en","El Niño"],["ln","La Niña"]]},
-          img: function (a, b, c) { return "assets/sst/enso_imp_obs_" + a + "_" + b + "_" + c + ".webp?v=f47ae7180fd2"; }, about: "about-imp_obs", fit: false,
+          img: function (a, b, c) { return "assets/sst/enso_imp_obs_" + a + "_" + b + "_" + c + ".webp?v=522730401f28"; }, about: "about-imp_obs", fit: false,
           cap: function (a, b) { return (a === "pr" ? "GPCP" : "ERA5") + "; significant only."; }},
   imp_super: {label: "Super El Niño over the Americas", a: {label: "View", items: [["life","Lifecycle"],["nonlin","Beyond linear"],["namon","North America by month"]]},
           b: function (a) { return a === "namon" ? {label: "Month", items: [["Nov","Nov"],["Dec","Dec"],["Jan","Jan"],["Feb","Feb"],["Mar","Mar"]]} : IMP_V; },
           c: function (a) { return a === "namon" ? null : IMP_PH; },
-          img: function (a, b, c) { return (a === "namon" ? "assets/sst/enso_imp_namon_" + b : "assets/sst/enso_imp_life_" + b + "_" + c + "_" + (a === "nonlin" ? "nonlin" : "super")) + ".webp?v=f47ae7180fd2"; },
+          img: function (a, b, c) { return (a === "namon" ? "assets/sst/enso_imp_namon_" + b : "assets/sst/enso_imp_life_" + b + "_" + c + "_" + (a === "nonlin" ? "nonlin" : "super")) + ".webp?v=522730401f28"; },
           about: "about-imp_super", fit: false,
           cap: function (a) { return "CMIP6 super El Niño winters (DJF Niño-3.4 ≥ +2 K)."; }},
   imp_asym: {label: "ENSO asymmetry", a: IMP_V, b: IMP_S, c: {label: "Events", items: [["asym","|index| ≥ 0.5 K"],["asym_strong","|index| ≥ 1.5 K"]]},
-          img: function (a, b, c) { return "assets/sst/enso_imp_asym_" + a + "_" + b + "_" + c + ".webp?v=f47ae7180fd2"; }, about: "about-imp_asym", fit: false,
+          img: function (a, b, c) { return "assets/sst/enso_imp_asym_" + a + "_" + b + "_" + c + ".webp?v=522730401f28"; }, about: "about-imp_asym", fit: false,
           cap: function (a, b) { return "El Niño plus La Niña; zero is a mirror image. Robust only."; }},
   imp_ovm: {label: "Observed ENSO impacts against the models", a: {label: "View", items: [["map","Super El Niño, mapped"],["table","Every class, by region"]]},
           b: function (a) { return a === "map" ? IMP_VT : null; }, c: function (a) { return a === "map" ? IMP_PH : null; },
-          img: function (a, b, c) { return (a === "map" ? "assets/sst/enso_imp_ovm_" + b + "_" + c : "assets/sst/enso_imp_ovmtab_tas") + ".webp?v=f47ae7180fd2"; },
+          img: function (a, b, c) { return (a === "map" ? "assets/sst/enso_imp_ovm_" + b + "_" + c : "assets/sst/enso_imp_ovmtab_tas") + ".webp?v=522730401f28"; },
           about: "about-imp_ovm", fit: false,
           cap: function (a) { return "Shown only outside the CMIP6 spread."; }},
   imp_ec: {label: "East-based, basin-wide and central El Niño", a: {label: "View", items: [["comp","Composites by class"],["diff","East minus central"],["models","Model by model"],["reg","E and C regressions"],["place","Where events fall"]]},
           b: function (a) { return a === "place" ? null : IMP_V; },
           c: function (a) { return a === "comp" ? IMP_EC : a === "models" ? IMP_ECM : a === "reg" ? IMP_ECR : null; },
-          img: function (a, b, c) { if (a === "place") return "assets/sst/enso_imp_ec_place.webp?v=f47ae7180fd2";
+          img: function (a, b, c) { if (a === "place") return "assets/sst/enso_imp_ec_place.webp?v=522730401f28";
                                     var f = "assets/sst/enso_imp_ec_" + b + "_DJF_";
-                                    if (a === "diff") return f + "diff.webp?v=f47ae7180fd2";
-                                    if (a === "models") return f + c + "_models.webp?v=f47ae7180fd2";
-                                    if (a === "reg") return f + c.charAt(0) + "_" + (c.length > 1 ? "obs" : "cmip6") + ".webp?v=f47ae7180fd2";
-                                    return f + c + ".webp?v=f47ae7180fd2"; },
+                                    if (a === "diff") return f + "diff.webp?v=522730401f28";
+                                    if (a === "models") return f + c + "_models.webp?v=522730401f28";
+                                    if (a === "reg") return f + c.charAt(0) + "_" + (c.length > 1 ? "obs" : "cmip6") + ".webp?v=522730401f28";
+                                    return f + c + ".webp?v=522730401f28"; },
           about: "about-imp_ec", fit: false,
           cap: function (a, b, c) { return a === "place" ? "CMIP6 and observed El Niño winters." : a === "models" ? "Each CMIP6 model; fewer than 8 events, no map." : a === "reg" ? (c.length > 1 ? "Observed" : "CMIP6") + "; significant only." : "CMIP6; robust only."; }},
   imp_pdocause: {label: "The PDO: mostly driven by the atmosphere, not driving it",
           a: {label: "View", items: [["all","Side by side"],["table","Numbers"],["covar_cmip6","Co-variability, CMIP6"],["covar_era5","Co-variability, ERA5"],["lag","Lagged"],["frank2","Frankignoul"],["amip","AMIP"],["dcpp_ipsl","IPSL pacemaker"],["dcpp_hadgem","HadGEM3 pacemaker"]]},
-          img: function (a) { return "assets/sst/enso_imp_pdocause_" + a + ".webp?v=f47ae7180fd2"; }, about: "about-imp_pdocause", fit: false,
+          img: function (a) { return "assets/sst/enso_imp_pdocause_" + a + ".webp?v=522730401f28"; }, about: "about-imp_pdocause", fit: false,
           cap: function (a) { return a.indexOf("covar") === 0 ? "Co-variability, mostly the atmosphere driving the ocean." : a === "table" ? "With the Granger tests." : "Significant only."; }},
   imp_pdomonth: {label: "PDO: its small forced effects by month (North America)",
           a: {label: "Method", items: [["summary","Summary"],["cpl_coast","Coastal SST, coupled"],["amip_coast","Coastal SST, AMIP"],["cpl_pdo","PDO, coupled"],["amip_pdo","PDO, AMIP"],["ipsl","IPSL pacemaker"],["hadgem","HadGEM3 pacemaker"],["obs","Observed"],["covar","Co-variability (NOT the effect)"]]},
           b: function (a) { return a === "summary" ? null : (a.indexOf("coast") >= 0 ? IMP_VT : IMP_V); },
           c: function (a) { return a === "summary" ? null : (a === "ipsl" || a === "hadgem") ? IMP_S
                                    : {label: "Month", items: [["01","Jan"],["02","Feb"],["03","Mar"],["04","Apr"],["05","May"],["06","Jun"],["07","Jul"],["08","Aug"],["09","Sep"],["10","Oct"],["11","Nov"],["12","Dec"]]}; },
-          img: function (a, b, c) { return a === "summary" ? "assets/sst/enso_imp_pdomon_summary.webp?v=f47ae7180fd2"
-                                  : "assets/sst/enso_imp_pdomon_" + a + "_" + b + "_" + c + ".webp?v=f47ae7180fd2"; },
+          img: function (a, b, c) { return a === "summary" ? "assets/sst/enso_imp_pdomon_summary.webp?v=522730401f28"
+                                  : "assets/sst/enso_imp_pdomon_" + a + "_" + b + "_" + c + ".webp?v=522730401f28"; },
           about: "about-imp_pdomonth", fit: false,
           cap: function (a, b, c) { return a === "covar" ? "Not the PDO's effect: co-variability." : "Significant only; blank, no forced response."; }},
-  imp_wave: {label: "Where the ENSO wave train sits", img: function () { return "assets/sst/enso_imp_wave_position.webp?v=f47ae7180fd2"; },
+  imp_wave: {label: "Where the ENSO wave train sits", img: function () { return "assets/sst/enso_imp_wave_position.webp?v=522730401f28"; },
           about: "about-imp_wave", fit: false,
           cap: function () { return "ERA5 and CMIP6, season by season."; }},
   imp_regions: {label: "ENSO impacts by region", a: IMP_VT, b: IMP_S,
-          img: function (a, b) { return "assets/sst/enso_imp_regions_" + a + "_" + b + ".webp?v=f47ae7180fd2"; }, about: "about-imp_regions", fit: false,
+          img: function (a, b) { return "assets/sst/enso_imp_regions_" + a + "_" + b + ".webp?v=522730401f28"; }, about: "about-imp_regions", fit: false,
           cap: function (a, b) { return "CMIP6 and observed; significant only."; }}
 }
 };
@@ -727,7 +727,7 @@ window.loadPlotly = function () {
              trop: "#6f6b64", roni: "#8a4b2a", oni: "#b8912a" };
   var HIST = null, histP = null;
   function loadHist() {
-    if (!histP) histP = fetch("assets/sst/data/nino_history.json?v=f47ae7180fd2")
+    if (!histP) histP = fetch("assets/sst/data/nino_history.json?v=522730401f28")
       .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
       .then(function (h) { HIST = h; return h; });
     return histP;
@@ -939,19 +939,19 @@ window.loadPlotly = function () {
   });
   // CPC's published values, so the strip can show the OFFICIAL number beside our
   // estimate of it. Best-effort: the chips render without it.
-  fetch("assets/sst/data/cpc_official.json?v=f47ae7180fd2")
+  fetch("assets/sst/data/cpc_official.json?v=522730401f28")
     .then(function (r) { return r.ok ? r.json() : null; })
     .catch(function () { return null; })
     .then(function (o) {
       window.CPCOFF = o;
       // the forecasts page's east/central measure (Takahashi E and C, latest OISST week); best-effort as well
-      return fetch("assets/sst/data/enso_flavour_obs.json?v=f47ae7180fd2")
+      return fetch("assets/sst/data/enso_flavour_obs.json?v=522730401f28")
         .then(function (r) { return r.ok ? r.json() : null; })
         .catch(function () { return null; });
     })
     .then(function (fo) {
       window.FLOBS = fo;
-      return fetch("assets/sst/data/enso_daily.json?v=f47ae7180fd2")
+      return fetch("assets/sst/data/enso_daily.json?v=522730401f28")
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (d) {
           state.data = d;
@@ -1005,7 +1005,7 @@ window.loadPlotly = function () {
   }
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (b) { b.addEventListener("click", function () { st.index = b.dataset.ssIndex; document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (b) { b.addEventListener("click", function () { st.view = b.dataset.ssView; document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
-  fetch("assets/sst/data/seas5_tele.json?v=f47ae7180fd2").then(function (r) { return r.json(); }).then(function (j) { T = j; draw(); }).catch(function () { document.getElementById("soiSeasNote").textContent = "SEAS5 index file not available."; });
+  fetch("assets/sst/data/seas5_tele.json?v=522730401f28").then(function (r) { return r.json(); }).then(function (j) { T = j; draw(); }).catch(function () { document.getElementById("soiSeasNote").textContent = "SEAS5 index file not available."; });
   window.addEventListener("resize", function () { if (document.getElementById("soiSeasChart").offsetWidth) draw(); });
 })();
 </script>
