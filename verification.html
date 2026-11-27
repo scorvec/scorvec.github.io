@@ -268,7 +268,7 @@ window.plotly = function () {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <script src="/assets/verification/vcharts.js?v=1e9b2b50f8"></script>
-<script src="/assets/verification/vbuild.js?v=380c5f5089" defer></script>
+<script src="/assets/verification/vbuild.js?v=b6fce17093" defer></script>
 <script src="/assets/frames_root.js?v=37e1429f1f"></script>
 <script src="/assets/site.js?v=de9fd94074" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
@@ -525,9 +525,11 @@ window.plotly = function () {
   <section class="card" id="regions-card" hidden>
     <h2>One variable, region by region</h2>
     <div class="controls">
+      <label>Models<select id="rb-kind"></select></label>
       <label>Variable<select id="rb-var"></select></label>
       <label>Score<select id="rb-score"></select></label>
       <label>Leads<select id="rb-leads"></select></label>
+      <span class="ctl"><span id="rb-regions-name">Regions</span><span class="pills" id="rb-regions" role="group" aria-labelledby="rb-regions-name"></span></span>
     </div>
     <div class="vfig" id="rb-fig" data-noswipe></div>
     <p class="note" id="rb-note"></p>
@@ -1481,34 +1483,56 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       });
     };
     $("lead-card").hidden = !lvars.length;
-    // the same scores with a panel a region: one variable's bias, RMSE or RMSE against the IFS control by lead
-    const bv = $("rb-var"), bs = $("rb-score"), bl = $("rb-leads");
-    const SCORE = { bias: "Bias", rmse: "RMSE", pct: "RMSE against IFS control" };
+    // the same scores with a panel a region: one variable's bias, RMSE or RMSE against the reference by lead, for the
+    // single runs or (from the ensembles' lead files, to day 15) the ensemble means; the buttons pick the regions
+    const en = ((figs.ensembles || {})[W === "10" ? "30" : W] || {}), ensLead = (en.data || {}).lead || {};
+    const bk = $("rb-kind"), bv = $("rb-var"), bs = $("rb-score"), bl = $("rb-leads");
     const REGIONS = ["Global", "NH 20-90N", "Tropics 20S-20N", "SH 20-90S", "North America", "CONUS", "Europe"];
-    fill(bv, lvars, v => named[v]?.label || v);
-    bv.value = lv.value;
-    fill(bs, Object.keys(SCORE), k => SCORE[k]);
+    const ENS_NAME = { ws10: ["10 m wind speed", "m s-1"], wind10: ["10 m vector wind", "m s-1"] };
+    const KINDS = { single: "Single runs", means: "Ensemble means" };
+    const fileOf = () => (bk.value === "means" ? ensLead : leadFile);
+    // an ensemble's lead file as a single run's: its mean's scores under the same names
+    const asSingle = reg => ({ leads: reg.leads, models: Object.fromEntries(Object.entries(reg.models).map(([m, sc]) =>
+      [m, Object.fromEntries(Object.entries({ rmse: sc.rmse || reg.leads.map(() => null), bias: sc.bias, bp: sc.bp, pct: sc.mpct, pp: sc.mpp })
+        .filter(([, a]) => a))])) });
+    fill(bk, Object.keys(KINDS).filter(k => Object.keys(k === "means" ? ensLead : leadFile).length), k => KINDS[k]);
     fill(bl, Object.keys(LEADS), k => LEADS[k]);
-    const byRegion = () => chart("rb-fig", [leadFile[bv.value]], d => {
-      const what = bs.value, u = unit(d.unit), panels = [], models = new Set();
-      $("rb-note").textContent = "";
-      for (const g of Object.keys(d.regions).sort((a, b) => REGIONS.indexOf(a) - REGIONS.indexOf(b))) {
-        let rows = leadRows(d.regions[g], bl.value);
-        if (!rows.us.length) rows = leadRows(d.regions[g], "all");
-        if (!rows.us.length || !scored(rows, what)) continue;
-        Object.keys(rows.models).forEach(m => models.add(m));
-        panels.push(leadPanel(rows, what, esc(g), { whiskers: false, dodge: 0 }));
-      }
-      if (!panels.length) return null;
-      const name = bv.selectedOptions[0]?.text || bv.value;
-      $("rb-note").textContent = `${what === "bias" ? `Bias, forecast less observed (${u})` : what === "rmse" ? `RMSE (${u})` : "RMSE against the IFS control (%)"}: ` +
-        `${name} against ${named[bv.value]?.truth || "the observations"}; ${span}.`;
-      return { label: `${SCORE[what]}, ${name}, by region`, panels, cols: 4, minWidth: 250, height: 250, legend: ordered(models).map(who),
-        keys: what === "rmse" ? [] : [zeroKey()] };
-    });
-    [bv, bs, bl].forEach(el => el.addEventListener("change", byRegion));
-    $("regions-card").hidden = !lvars.length;
-    byRegion();
+    let regionsOn = () => REGIONS, regionsFor = "";
+    const byRegion = () => {
+      const means = bk.value === "means", ref = means ? "IFS-ENS" : "the IFS control";
+      const vars = Object.keys(fileOf()).sort((x, y) => rank(x) - rank(y));
+      fill(bv, vars, v => ENS_NAME[v]?.[0] && means ? ENS_NAME[v][0] : named[v]?.label || ENS_NAME[v]?.[0] || v, true);
+      if (!bv.dataset.set) { bv.dataset.set = "1"; if (vars.includes("t2m")) bv.value = "t2m"; }
+      fill(bs, ["bias", "rmse", "pct"], k => ({ bias: "Bias", rmse: "RMSE", pct: `RMSE against ${means ? "IFS-ENS" : "IFS control"}` })[k], true);
+      ctl("rb-leads").hidden = means;   // an ensemble is scored at 00 UTC of each day
+      chart("rb-fig", [fileOf()[bv.value]], d => {
+        const what = bs.value, u = unit(d.unit || named[bv.value]?.unit || ENS_NAME[bv.value]?.[1] || ""), panels = [], models = new Set();
+        const regs = Object.keys(d.regions).sort((x, y) => REGIONS.indexOf(x) - REGIONS.indexOf(y));
+        if (regionsFor !== regs.join()) {
+          regionsFor = regs.join();
+          regionsOn = window.vbuild.toggles($("rb-regions"), regs.map(g => [g, g.replace(/ \d.*$/, "")]), regionsOn(), byRegion);
+        }
+        $("rb-note").textContent = "";
+        for (const g of regionsOn()) {
+          const reg = means ? asSingle(d.regions[g]) : d.regions[g];
+          let rows = leadRows(reg, means ? "all" : bl.value);
+          if (!rows.us.length) rows = leadRows(reg, "all");
+          if (!rows.us.length || !scored(rows, what)) continue;
+          Object.keys(rows.models).forEach(m => models.add(m));
+          panels.push(leadPanel(rows, what, esc(g), { whiskers: false, dodge: 0, markers: true }));
+        }
+        if (!panels.length) return null;
+        const name = bv.selectedOptions[0]?.text || bv.value, w = means ? en.window : sc.window;
+        $("rb-note").textContent = `${what === "bias" ? `Bias, forecast less observed (${u})` : what === "rmse" ? `RMSE (${u})` : `RMSE against ${ref} (%)`}` +
+          `${means ? ", the ensemble means" : ""}: ${name}${named[bv.value]?.truth ? ` against ${named[bv.value].truth}` : ""}; ` +
+          `the ${w.runs} runs from ${ymd(w.first)} to ${ymd(w.last)}.`;
+        return { label: `${bs.selectedOptions[0].text}, ${name}, by region`, panels, cols: Math.min(4, panels.length), minWidth: 250,
+          height: panels.length > 2 ? 250 : 330, legend: ordered(models).map(who), keys: what === "rmse" ? [] : [zeroKey()] };
+      });
+    };
+    [bk, bv, bs, bl].forEach(el => el.addEventListener("change", byRegion));
+    $("regions-card").hidden = !bk.options.length;
+    parsed.then(() => { if (window.vbuild && bk.options.length) byRegion(); });
     // how the error grows: the headline variables by lead in one region, upper air or surface, as a
     // percentage against the IFS control or as the RMSE itself
     const gr = $("gg-region"), gk = $("g-kind"), gv = $("g-view");
@@ -2412,7 +2436,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       ["scores", "Scorecard", "one model against another", "scores"],
       ["growth", "Headline variables", "error by day, eight variables", "growth-card", true],
       ["lead", "One variable", "RMSE and bias by day", "lead-card", true],
-      ["regions", "By region", "bias or RMSE by day, every region", "regions-card", true],
+      ["regions", "By region", "bias or RMSE by day, region by region", "regions-card", true],
       ["acc", "500 hPa skill", "anomaly correlation", "acc-card", true],
       ["profiles", "Upper air", "error by pressure level", "profile-card", true],
       ["uppermaps", "Upper-air maps", "error by level, against ERA5 or an analysis", "uppermap-card", true],

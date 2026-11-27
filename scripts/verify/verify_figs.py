@@ -1293,6 +1293,17 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
     return out
 
 
+FULL_SHARE = 0.5  # of the median lead's pairs: a lead with fewer is a different, partial sample
+
+
+def whole(g: pd.DataFrame) -> pd.DataFrame:
+    """``g`` at the leads that hold at least FULL_SHARE of the median lead's pairs: a run joins the database before
+    all its last days' observations are in, so the last leads of the newest runs are scored at a fraction of the
+    stations and runs, and their scores are that fraction's, not the window's."""
+    n = g.groupby(["lead_h", "model"], observed=True)["n"].sum().unstack("model").min(axis=1)
+    return g[g["lead_h"].isin(n.index[n >= FULL_SHARE * n.median()])]
+
+
 def ens_data(s: pd.DataFrame, r: pd.DataFrame, models: list, rho: dict, rho_mean: dict, name: str, out: Path) -> dict:
     """The window's numbers for the page's charts: per variable the scores by lead and the rank histograms of each
     region, per variable and threshold the reliability."""
@@ -1300,7 +1311,7 @@ def ens_data(s: pd.DataFrame, r: pd.DataFrame, models: list, rho: dict, rho_mean
     for v in ENS_ROWS:
         regions = {}
         for region, g in s[s["variable"] == v].groupby("region"):
-            if region in ENS_REGIONS and not (g := sampled(g, "lead_h")).empty:
+            if region in ENS_REGIONS and not (g := whole(sampled(g, "lead_h"))).empty:
                 regions[region] = ens_lead_data(g, models, rho, rho_mean, v.startswith("wind")) | {
                     "rank": ens_rank_data(g, models, rho)
                 }

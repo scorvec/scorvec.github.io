@@ -562,5 +562,5 @@
     };
   }
 
-  window.vbuild = { builder, region, stats: { meanTest, pairedTest, tTwo, tQuant, cutOf, running } };
+  window.vbuild = { builder, region, toggles, stats: { meanTest, pairedTest, tTwo, tQuant, cutOf, running } };
 })();
