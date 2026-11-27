@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-27 17:43 UTC",
+ "generated": "2026-11-27 20:02 UTC",
  "acc": {
   "NH_30": {
    "window": {
@@ -10,8 +10,8 @@
      "IFS-ENS": 25
     },
     "runs": 30,
-    "first": "2026100900",
-    "last": "2026110700"
+    "first": "2026101200",
+    "last": "2026111100"
    },
    "data": "acc_NH_30.json"
   },
@@ -19,26 +19,26 @@
    "window": {
     "left_out": {
      "AIFS-ENS": 85,
-     "GDPS": 62,
+     "GDPS": 65,
      "GEFS": 85,
-     "GEPS": 54,
+     "GEPS": 57,
      "IFS-ENS": 85
     },
     "runs": 90,
-    "first": "2026081000",
-    "last": "2026110700"
+    "first": "2026081300",
+    "last": "2026111100"
    },
    "data": "acc_NH_90.json"
   },
   "NH_all": {
    "window": {
     "left_out": {
-     "GDPS": 62,
-     "GEPS": 54
+     "GDPS": 65,
+     "GEPS": 57
     },
-    "runs": 174,
+    "runs": 177,
     "first": "2026051300",
-    "last": "2026110200"
+    "last": "2026110600"
    },
    "data": "acc_NH_all.json"
   },
@@ -51,8 +51,8 @@
      "IFS-ENS": 25
     },
     "runs": 30,
-    "first": "2026100900",
-    "last": "2026110700"
+    "first": "2026101200",
+    "last": "2026111100"
    },
    "data": "acc_SH_30.json"
   },
@@ -60,26 +60,26 @@
    "window": {
     "left_out": {
      "AIFS-ENS": 85,
-     "GDPS": 62,
+     "GDPS": 65,
      "GEFS": 85,
-     "GEPS": 54,
+     "GEPS": 57,
      "IFS-ENS": 85
     },
     "runs": 90,
-    "first": "2026081000",
-    "last": "2026110700"
+    "first": "2026081300",
+    "last": "2026111100"
    },
    "data": "acc_SH_90.json"
   },
   "SH_all": {
    "window": {
     "left_out": {
-     "GDPS": 62,
-     "GEPS": 54
+     "GDPS": 65,
+     "GEPS": 57
     },
-    "runs": 174,
+    "runs": 177,
     "first": "2026051300",
-    "last": "2026110200"
+    "last": "2026110600"
    },
    "data": "acc_SH_all.json"
   }
@@ -820,6 +820,547 @@
     "last": "2026111300",
     "left_out": {}
    }
+  },
+  "means": {
+   "maps": {
+    "t2m_24": {
+     "file": "bias_means_t2m_24.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_t2m_24_GEFS.webp",
+       "mapped": 8748,
+       "significant": 6240
+      },
+      "IFS-ENS": {
+       "file": "bias_means_t2m_24_IFSENS.webp",
+       "mapped": 8748,
+       "significant": 4568
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_t2m_24_AIFSENS.webp",
+       "mapped": 8748,
+       "significant": 4704
+      },
+      "GEPS": {
+       "file": "bias_means_t2m_24_GEPS.webp",
+       "mapped": 8748,
+       "significant": 6039
+      }
+     }
+    },
+    "t2m_72": {
+     "file": "bias_means_t2m_72.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_t2m_72_GEFS.webp",
+       "mapped": 8759,
+       "significant": 5723
+      },
+      "IFS-ENS": {
+       "file": "bias_means_t2m_72_IFSENS.webp",
+       "mapped": 8759,
+       "significant": 4161
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_t2m_72_AIFSENS.webp",
+       "mapped": 8759,
+       "significant": 3641
+      },
+      "GEPS": {
+       "file": "bias_means_t2m_72_GEPS.webp",
+       "mapped": 8759,
+       "significant": 5545
+      }
+     }
+    },
+    "t2m_120": {
+     "file": "bias_means_t2m_120.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_t2m_120_GEFS.webp",
+       "mapped": 8746,
+       "significant": 5105
+      },
+      "IFS-ENS": {
+       "file": "bias_means_t2m_120_IFSENS.webp",
+       "mapped": 8746,
+       "significant": 3691
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_t2m_120_AIFSENS.webp",
+       "mapped": 8746,
+       "significant": 3101
+      },
+      "GEPS": {
+       "file": "bias_means_t2m_120_GEPS.webp",
+       "mapped": 8746,
+       "significant": 4758
+      }
+     }
+    },
+    "t2m_168": {
+     "file": "bias_means_t2m_168.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_t2m_168_GEFS.webp",
+       "mapped": 8785,
+       "significant": 4143
+      },
+      "IFS-ENS": {
+       "file": "bias_means_t2m_168_IFSENS.webp",
+       "mapped": 8785,
+       "significant": 2945
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_t2m_168_AIFSENS.webp",
+       "mapped": 8785,
+       "significant": 2256
+      },
+      "GEPS": {
+       "file": "bias_means_t2m_168_GEPS.webp",
+       "mapped": 8785,
+       "significant": 3777
+      }
+     }
+    },
+    "t2m_240": {
+     "file": "bias_means_t2m_240.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_t2m_240_GEFS.webp",
+       "mapped": 8754,
+       "significant": 2905
+      },
+      "IFS-ENS": {
+       "file": "bias_means_t2m_240_IFSENS.webp",
+       "mapped": 8754,
+       "significant": 1952
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_t2m_240_AIFSENS.webp",
+       "mapped": 8754,
+       "significant": 826
+      },
+      "GEPS": {
+       "file": "bias_means_t2m_240_GEPS.webp",
+       "mapped": 8754,
+       "significant": 2974
+      }
+     }
+    },
+    "td2m_24": {
+     "file": "bias_means_td2m_24.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_td2m_24_GEFS.webp",
+       "mapped": 8714,
+       "significant": 7365
+      },
+      "IFS-ENS": {
+       "file": "bias_means_td2m_24_IFSENS.webp",
+       "mapped": 8714,
+       "significant": 4674
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_td2m_24_AIFSENS.webp",
+       "mapped": 8714,
+       "significant": 5479
+      },
+      "GEPS": {
+       "file": "bias_means_td2m_24_GEPS.webp",
+       "mapped": 8714,
+       "significant": 5551
+      }
+     }
+    },
+    "td2m_72": {
+     "file": "bias_means_td2m_72.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_td2m_72_GEFS.webp",
+       "mapped": 8727,
+       "significant": 7025
+      },
+      "IFS-ENS": {
+       "file": "bias_means_td2m_72_IFSENS.webp",
+       "mapped": 8727,
+       "significant": 4080
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_td2m_72_AIFSENS.webp",
+       "mapped": 8727,
+       "significant": 3511
+      },
+      "GEPS": {
+       "file": "bias_means_td2m_72_GEPS.webp",
+       "mapped": 8727,
+       "significant": 4871
+      }
+     }
+    },
+    "td2m_120": {
+     "file": "bias_means_td2m_120.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_td2m_120_GEFS.webp",
+       "mapped": 8725,
+       "significant": 5693
+      },
+      "IFS-ENS": {
+       "file": "bias_means_td2m_120_IFSENS.webp",
+       "mapped": 8725,
+       "significant": 3077
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_td2m_120_AIFSENS.webp",
+       "mapped": 8725,
+       "significant": 2242
+      },
+      "GEPS": {
+       "file": "bias_means_td2m_120_GEPS.webp",
+       "mapped": 8725,
+       "significant": 3825
+      }
+     }
+    },
+    "td2m_168": {
+     "file": "bias_means_td2m_168.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_td2m_168_GEFS.webp",
+       "mapped": 8755,
+       "significant": 4104
+      },
+      "IFS-ENS": {
+       "file": "bias_means_td2m_168_IFSENS.webp",
+       "mapped": 8755,
+       "significant": 2225
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_td2m_168_AIFSENS.webp",
+       "mapped": 8755,
+       "significant": 1691
+      },
+      "GEPS": {
+       "file": "bias_means_td2m_168_GEPS.webp",
+       "mapped": 8755,
+       "significant": 2611
+      }
+     }
+    },
+    "td2m_240": {
+     "file": "bias_means_td2m_240.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_td2m_240_GEFS.webp",
+       "mapped": 8724,
+       "significant": 3161
+      },
+      "IFS-ENS": {
+       "file": "bias_means_td2m_240_IFSENS.webp",
+       "mapped": 8724,
+       "significant": 1456
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_td2m_240_AIFSENS.webp",
+       "mapped": 8724,
+       "significant": 806
+      },
+      "GEPS": {
+       "file": "bias_means_td2m_240_GEPS.webp",
+       "mapped": 8724,
+       "significant": 1737
+      }
+     }
+    },
+    "msl_24": {
+     "file": "bias_means_msl_24.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_msl_24_GEFS.webp",
+       "mapped": 5227,
+       "significant": 2245
+      },
+      "IFS-ENS": {
+       "file": "bias_means_msl_24_IFSENS.webp",
+       "mapped": 5227,
+       "significant": 3296
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_msl_24_AIFSENS.webp",
+       "mapped": 5227,
+       "significant": 3110
+      },
+      "GEPS": {
+       "file": "bias_means_msl_24_GEPS.webp",
+       "mapped": 5227,
+       "significant": 2663
+      }
+     }
+    },
+    "msl_72": {
+     "file": "bias_means_msl_72.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_msl_72_GEFS.webp",
+       "mapped": 5274,
+       "significant": 1295
+      },
+      "IFS-ENS": {
+       "file": "bias_means_msl_72_IFSENS.webp",
+       "mapped": 5274,
+       "significant": 1390
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_msl_72_AIFSENS.webp",
+       "mapped": 5274,
+       "significant": 2201
+      },
+      "GEPS": {
+       "file": "bias_means_msl_72_GEPS.webp",
+       "mapped": 5274,
+       "significant": 1614
+      }
+     }
+    },
+    "msl_120": {
+     "file": "bias_means_msl_120.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_msl_120_GEFS.webp",
+       "mapped": 5268,
+       "significant": 903
+      },
+      "IFS-ENS": {
+       "file": "bias_means_msl_120_IFSENS.webp",
+       "mapped": 5268,
+       "significant": 637
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_msl_120_AIFSENS.webp",
+       "mapped": 5268,
+       "significant": 1437
+      },
+      "GEPS": {
+       "file": "bias_means_msl_120_GEPS.webp",
+       "mapped": 5268,
+       "significant": 1138
+      }
+     }
+    },
+    "msl_168": {
+     "file": "bias_means_msl_168.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_msl_168_GEFS.webp",
+       "mapped": 5274,
+       "significant": 693
+      },
+      "IFS-ENS": {
+       "file": "bias_means_msl_168_IFSENS.webp",
+       "mapped": 5274,
+       "significant": 460
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_msl_168_AIFSENS.webp",
+       "mapped": 5274,
+       "significant": 1186
+      },
+      "GEPS": {
+       "file": "bias_means_msl_168_GEPS.webp",
+       "mapped": 5274,
+       "significant": 537
+      }
+     }
+    },
+    "msl_240": {
+     "file": "bias_means_msl_240.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_msl_240_GEFS.webp",
+       "mapped": 5241,
+       "significant": 258
+      },
+      "IFS-ENS": {
+       "file": "bias_means_msl_240_IFSENS.webp",
+       "mapped": 5241,
+       "significant": 0
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_msl_240_AIFSENS.webp",
+       "mapped": 5241,
+       "significant": 653
+      },
+      "GEPS": {
+       "file": "bias_means_msl_240_GEPS.webp",
+       "mapped": 5241,
+       "significant": 55
+      }
+     }
+    },
+    "wind10_24": {
+     "file": "bias_means_wind10_24.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_wind10_24_GEFS.webp",
+       "mapped": 7365,
+       "significant": 5989
+      },
+      "IFS-ENS": {
+       "file": "bias_means_wind10_24_IFSENS.webp",
+       "mapped": 7365,
+       "significant": 5200
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_wind10_24_AIFSENS.webp",
+       "mapped": 7365,
+       "significant": 5349
+      },
+      "GEPS": {
+       "file": "bias_means_wind10_24_GEPS.webp",
+       "mapped": 7365,
+       "significant": 5918
+      }
+     }
+    },
+    "wind10_72": {
+     "file": "bias_means_wind10_72.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_wind10_72_GEFS.webp",
+       "mapped": 7334,
+       "significant": 5634
+      },
+      "IFS-ENS": {
+       "file": "bias_means_wind10_72_IFSENS.webp",
+       "mapped": 7334,
+       "significant": 4819
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_wind10_72_AIFSENS.webp",
+       "mapped": 7334,
+       "significant": 4995
+      },
+      "GEPS": {
+       "file": "bias_means_wind10_72_GEPS.webp",
+       "mapped": 7334,
+       "significant": 5701
+      }
+     }
+    },
+    "wind10_120": {
+     "file": "bias_means_wind10_120.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_wind10_120_GEFS.webp",
+       "mapped": 7335,
+       "significant": 5696
+      },
+      "IFS-ENS": {
+       "file": "bias_means_wind10_120_IFSENS.webp",
+       "mapped": 7335,
+       "significant": 4095
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_wind10_120_AIFSENS.webp",
+       "mapped": 7335,
+       "significant": 4393
+      },
+      "GEPS": {
+       "file": "bias_means_wind10_120_GEPS.webp",
+       "mapped": 7335,
+       "significant": 5139
+      }
+     }
+    },
+    "wind10_168": {
+     "file": "bias_means_wind10_168.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_wind10_168_GEFS.webp",
+       "mapped": 7368,
+       "significant": 4785
+      },
+      "IFS-ENS": {
+       "file": "bias_means_wind10_168_IFSENS.webp",
+       "mapped": 7368,
+       "significant": 3266
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_wind10_168_AIFSENS.webp",
+       "mapped": 7368,
+       "significant": 3559
+      },
+      "GEPS": {
+       "file": "bias_means_wind10_168_GEPS.webp",
+       "mapped": 7368,
+       "significant": 4569
+      }
+     }
+    },
+    "wind10_240": {
+     "file": "bias_means_wind10_240.webp",
+     "models": {
+      "GEFS": {
+       "file": "bias_means_wind10_240_GEFS.webp",
+       "mapped": 7338,
+       "significant": 3909
+      },
+      "IFS-ENS": {
+       "file": "bias_means_wind10_240_IFSENS.webp",
+       "mapped": 7338,
+       "significant": 3091
+      },
+      "AIFS-ENS": {
+       "file": "bias_means_wind10_240_AIFSENS.webp",
+       "mapped": 7338,
+       "significant": 3282
+      },
+      "GEPS": {
+       "file": "bias_means_wind10_240_GEPS.webp",
+       "mapped": 7338,
+       "significant": 3917
+      }
+     }
+    }
+   },
+   "variables": {
+    "t2m": {
+     "label": "2 m temperature",
+     "unit": "K"
+    },
+    "td2m": {
+     "label": "2 m dew point",
+     "unit": "K"
+    },
+    "msl": {
+     "label": "Mean sea-level pressure",
+     "unit": "hPa"
+    },
+    "wind10": {
+     "label": "10 m wind speed",
+     "unit": "m/s"
+    }
+   },
+   "leads": [
+    24,
+    72,
+    120,
+    168,
+    240
+   ],
+   "models": [
+    "GEFS",
+    "IFS-ENS",
+    "AIFS-ENS",
+    "GEPS"
+   ],
+   "window": {
+    "runs": 30,
+    "first": "2026101300",
+    "last": "2026111100",
+    "left_out": {}
+   }
   }
  },
  "countries": {
@@ -1250,8 +1791,8 @@
   "30": {
    "window": {
     "runs": 30,
-    "first": "2026101200",
-    "last": "2026111000",
+    "first": "2026101300",
+    "last": "2026111100",
     "left_out": {}
    },
    "models": [
@@ -1391,10 +1932,10 @@
   "90": {
    "window": {
     "runs": 90,
-    "first": "2026081300",
-    "last": "2026111000",
+    "first": "2026081400",
+    "last": "2026111100",
     "left_out": {
-     "GEPS": 62
+     "GEPS": 63
     }
    },
    "models": [
@@ -1514,24 +2055,24 @@
   },
   "ensembles": {
    "IFS-ENS": {
-    "runs": 182,
+    "runs": 183,
     "first": "2026051300",
-    "last": "2026111000"
+    "last": "2026111100"
    },
    "AIFS-ENS": {
-    "runs": 182,
+    "runs": 183,
     "first": "2026051300",
-    "last": "2026111000"
+    "last": "2026111100"
    },
    "GEFS": {
-    "runs": 182,
+    "runs": 183,
     "first": "2026051300",
-    "last": "2026111000"
+    "last": "2026111100"
    },
    "GEPS": {
-    "runs": 62,
+    "runs": 63,
     "first": "2026091000",
-    "last": "2026111000"
+    "last": "2026111100"
    }
   },
   "z500": {
