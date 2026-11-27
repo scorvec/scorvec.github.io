@@ -260,12 +260,12 @@ window.STAGE = {
           cap: function () { return "Active Kelvin and equatorial Rossby packets."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
           frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=manifest"; },
-          img: function () { return "assets/sst/kelvin_hov.webp?v=226f64105eea"; }, ratio: function () { return "1652/560"; },
+          img: function () { return "assets/sst/kelvin_hov.webp?v=6b832dbe26a2"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
           cap: function (a) { return a === "hov" ? "Last 45 days of analyses, then AIFS-ENS to day 15." : "Ten days of analyses, then AIFS-ENS to day 15; K marks a crest."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
           frame: function (a) { return a === "map" ? "sst_anim.html?embed=1&manifest=okelvin_manifest.json&region=okelvin" : null; },
-          img: function () { return "assets/sst/ocean_kelvin.webp?v=226f64105eea"; }, ratio: function () { return "1652/560"; },
+          img: function () { return "assets/sst/ocean_kelvin.webp?v=6b832dbe26a2"; }, ratio: function () { return "1652/560"; },
           about: "about-okelvin", fit: false,
           cap: function (a) { return a === "map" ? "Satellite altimetry, last 200 days; K marks a crest, red warm, blue cold." : "Satellite altimetry along the equator."; }}
 }
