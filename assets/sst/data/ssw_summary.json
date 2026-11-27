@@ -1,5 +1,5 @@
 {
- "built": "2026-11-27 19:54Z",
+ "built": "2026-11-27 20:26Z",
  "newest_init": "2026-11-27 12Z",
  "window": [
   "2026-11-28",
@@ -1882,6 +1882,11 @@
      0,
      1
     ],
+    "ends": [
+     21,
+     28,
+     35
+    ],
     "base_rate": {
      "winters": 46,
      "with_onset": 2,
@@ -1906,6 +1911,11 @@
     "first": [
      0,
      0,
+     null
+    ],
+    "ends": [
+     21,
+     28,
      null
     ],
     "base_rate": {
@@ -2073,7 +2083,7 @@
   "shear_init": "2026-11-27 12Z",
   "shear_min": 12.2,
   "shear_max": 50.0,
-  "shear_normal": 13.6,
+  "shear_normal": 22.3,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [],
