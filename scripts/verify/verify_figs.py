@@ -1195,12 +1195,17 @@ def group_rho(rho: dict, a: int, b: int) -> float:
     return float(np.mean(vals)) if vals else 0.0
 
 
-def ens_lead_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
+MEAN_KEYS = ("rmse", "elo", "ehi", "bias", "blo", "bhi", "bp")  # the ensemble mean's scores (``pooled``)
+
+
+def ens_lead_data(g: pd.DataFrame, models: list, rho: dict, rho_mean: dict, vector: bool) -> dict:
     """One variable and region: each ensemble's CRPS and the spread of its members over the error of its mean by lead,
     with their 95 % intervals, and for every ensemble but the IFS-ENS its CRPS against the IFS-ENS's in %
-    (``against``) with the p value of its test (pp)."""
+    (``against``) with the p value of its test (pp); and its mean's RMSE and bias with theirs (``pooled``; rho_mean,
+    det_rho; a vector wind has no bias), the RMSE against the IFS-ENS mean's in % (mpct, mplo, mphi, mpp)."""
     hours = sorted(int(h) for h in g["lead_h"].unique())
     crps = {h: d.pivot_table(index="init", columns="model", values="crps") for h, d in g.groupby("lead_h")}
+    sse = {h: d.pivot_table(index="init", columns="model", values="sse") for h, d in g.groupby("lead_h")}
     out = {"leads": hours, "models": {}}
     for m in models:
         rows = {}
@@ -1214,9 +1219,17 @@ def ens_lead_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
             continue
         cols = zip(*(rows.get(h, (float("nan"),) * 6) for h in hours), strict=True)
         out["models"][m] = dict(zip(("crps", "clo", "chi", "ratio", "rlo", "rhi"), map(nums, cols), strict=True))
+        mean = {lead: pooled(d, rho_mean[lead]) for lead, d in g[g["model"] == m].groupby("lead_h")}
+        cols = zip(*(mean.get(h, (float("nan"),) * len(MEAN_KEYS)) for h in hours), strict=True)
+        out["models"][m] |= {
+            k: v for k, v in zip(MEAN_KEYS, map(nums, cols), strict=True) if not (vector and k.startswith("b"))
+        }
         if "IFS-ENS" in models and m != "IFS-ENS":
             pct = [against(crps[h], m, "IFS-ENS", rho[h], root=False) for h in hours]
             out["models"][m] |= dict(zip(("pct", "plo", "phi", "pp"), map(nums, zip(*pct, strict=True)), strict=True))
+            pct = [against(sse[h], m, "IFS-ENS", rho_mean[h][0], root=True) for h in hours]
+            keys = ("mpct", "mplo", "mphi", "mpp")
+            out["models"][m] |= dict(zip(keys, map(nums, zip(*pct, strict=True)), strict=True))
     return out
 
 
@@ -1280,7 +1293,7 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
     return out
 
 
-def ens_data(s: pd.DataFrame, r: pd.DataFrame, models: list, rho: dict, name: str, out: Path) -> dict:
+def ens_data(s: pd.DataFrame, r: pd.DataFrame, models: list, rho: dict, rho_mean: dict, name: str, out: Path) -> dict:
     """The window's numbers for the page's charts: per variable the scores by lead and the rank histograms of each
     region, per variable and threshold the reliability."""
     lead, rel = {}, {}
@@ -1288,7 +1301,9 @@ def ens_data(s: pd.DataFrame, r: pd.DataFrame, models: list, rho: dict, name: st
         regions = {}
         for region, g in s[s["variable"] == v].groupby("region"):
             if region in ENS_REGIONS and not (g := sampled(g, "lead_h")).empty:
-                regions[region] = ens_lead_data(g, models, rho) | {"rank": ens_rank_data(g, models, rho)}
+                regions[region] = ens_lead_data(g, models, rho, rho_mean, v.startswith("wind")) | {
+                    "rank": ens_rank_data(g, models, rho)
+                }
         if regions:
             lead[v] = dump({"regions": regions}, out / f"ens_{name}_{v}.json")
     for (v, thr), g in r[r["variable"].isin([*ENS_ROWS, "tp"]) & r["region"].isin(ENS_REGIONS)].groupby(
@@ -1317,7 +1332,7 @@ def ens_figs(derived: Path, out: Path) -> dict:
                         f := ens_card(s, region, a, b, span, out / f"ecard_{name}_{slug(region)}_{a}_{b}.webp")
                     ):
                         cards.setdefault(region, {})[f"{a}|{b}"] = f
-        data = ens_data(s, r, models, rho, name, out)
+        data = ens_data(s, r, models, rho, det_rho(s), name, out)
         manifest[name] = {"window": span, "models": models, "card": cards, "data": data}
         print(f"ensembles {name}: {span['runs']} runs, {len(cards)} scorecard regions", flush=True)
     return manifest
