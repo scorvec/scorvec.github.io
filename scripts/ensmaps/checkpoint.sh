@@ -13,7 +13,7 @@ blob=$(git hash-object -w "$M")
 export GIT_AUTHOR_NAME="github-actions[bot]" GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 for i in 1 2 3 4 5; do
-  if ! timeout 120 git fetch -q origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+  if ! timeout 120 git fetch -q --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
   idx=$(mktemp)
   GIT_INDEX_FILE="$idx" git read-tree FETCH_HEAD
   GIT_INDEX_FILE="$idx" git update-index --add --cacheinfo "100644,$blob,$M"

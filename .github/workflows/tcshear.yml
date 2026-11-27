@@ -83,7 +83,7 @@ jobs:
       - name: The manifest as main has it now
         if: env.MODE == 'live'
         run: |
-          timeout 60 git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/anim/tcshear_manifest.json \
+          timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/anim/tcshear_manifest.json \
             || echo "::warning::main's manifest not read; the checkout's copy decides what is published"
 
       - name: Any storm active? (stdlib only)
@@ -160,7 +160,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             for f in $OUT; do if [ -e "$f" ]; then git add "$f"; fi; done

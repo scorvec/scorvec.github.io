@@ -133,7 +133,7 @@ jobs:
           SNAP=$(mktemp -d)
           cp "$R"/jet_branches_ref.json "$R"/jet_branches_events.csv "$R"/jet_branches_regions.nc "$SNAP/"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             cp "$SNAP"/* "$R/"
             git add "$R"/jet_branches_ref.json "$R"/jet_branches_events.csv "$R"/jet_branches_regions.nc

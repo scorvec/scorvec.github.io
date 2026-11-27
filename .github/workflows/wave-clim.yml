@@ -52,7 +52,7 @@ jobs:
           F=scripts/strat/reference/wave_clim.nc
           cp "$F" "$RUNNER_TEMP/wave_clim.nc"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             cp "$RUNNER_TEMP/wave_clim.nc" "$F"
             git add "$F"

@@ -102,7 +102,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           R=scripts/mjo/data/reference
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             cp new/*.nc "$R/"
             git add "$R/hadley_clim.nc" "$R/mmsf_clim_coeffs.nc" "$R/walker_clim_coeffs.nc"

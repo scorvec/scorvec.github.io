@@ -190,7 +190,7 @@ jobs:
         run: |
           set -euo pipefail
           fresh=true
-          if [ -z "$ONLY" ] && [ "$FORCE" != "true" ] && timeout 60 git fetch -q --depth 1 origin main; then
+          if [ -z "$ONLY" ] && [ "$FORCE" != "true" ] && timeout 60 git fetch -q --filter=blob:none --depth 1 origin main; then
             ver() {
               git show "FETCH_HEAD:assets/sst/anim/wave1_maps_$1_manifest.json" 2>/dev/null \
                 | python -c "import json, sys; print(json.load(sys.stdin).get('ver', ''))" 2>/dev/null || true
@@ -253,7 +253,7 @@ jobs:
       # copies over them (2026-10-17: a queued run dropped the 14 backfilled runs).
       - name: The run records as main has them now
         run: |
-          git fetch -q --depth 1 origin main
+          git fetch -q --filter=blob:none --depth 1 origin main
           git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
       # IFS-ENS step by step as it lands (ifs_ens.py land, up to 100 min) and, beside it, the IFS control (on the mirror
@@ -433,7 +433,7 @@ jobs:
       # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
       - name: The run records as main has them now
         run: |
-          git fetch -q --depth 1 origin main
+          git fetch -q --filter=blob:none --depth 1 origin main
           git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
       # IFS-ENS step by step as it lands and, beside it, the IFS control: its files, then its drip and wave loops.
@@ -639,7 +639,7 @@ jobs:
           FORCE: ${{ inputs.force }}
         run: |
           start=$(date +%s)
-          git fetch -q --depth 1 origin main   # what the page shows now (a queued run checks out an older commit)
+          git fetch -q --filter=blob:none --depth 1 origin main   # what the page shows now (a queued run checks out an older commit)
           skip=--skip-shown; [ "$FORCE" = "true" ] && skip=
           pids=()
           for m in $MODELS; do
@@ -926,7 +926,7 @@ jobs:
       - name: The records as main has them, and this run's drips
         run: |
           touch /tmp/t0
-          git fetch -q --depth 1 origin main
+          git fetch -q --filter=blob:none --depth 1 origin main
           for f in assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json assets/sst/data/ssw_imprint_runs.json \
                    assets/sst/data/{aifs,ifs,hres,gefs,geps}_drip.json assets/sst/data/{,ifs_,gefs_,geps_}heatflux100.json \
                    assets/sst/data/heatflux100_history.json assets/sst/data/upperstrat.json assets/sst/data/refractive_gefs.json; do
@@ -1077,7 +1077,7 @@ jobs:
           git reset -q
           MSG="data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $FILES; do git add "$f"; done

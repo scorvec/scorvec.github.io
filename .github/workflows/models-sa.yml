@@ -94,7 +94,7 @@ jobs:
           case "$MODEL" in ifs|gdps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
           mkdir -p assets/models
           # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
-          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/sa_$MODEL.json" > "/tmp/sa_$MODEL.json" 2>/dev/null; then
+          if timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show "FETCH_HEAD:assets/models/sa_$MODEL.json" > "/tmp/sa_$MODEL.json" 2>/dev/null; then
             cp "/tmp/sa_$MODEL.json" "assets/models/sa_$MODEL.json"
           else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/sa_$MODEL.json"; fi
           python scripts/models/samerica.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
@@ -161,7 +161,7 @@ jobs:
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             for f in $(outs); do git add -f "$f"; done

@@ -47,7 +47,7 @@ jobs:
 
       - name: The analysis record as main has it now
         run: |
-          git fetch -q --depth 1 origin main
+          git fetch -q --filter=blob:none --depth 1 origin main
           git checkout origin/main -- assets/sst/data/ssw_imprint_history.json 2>/dev/null || echo "no record yet"
 
       - name: Backfill the analyses
@@ -69,7 +69,7 @@ jobs:
           FILES=$(git diff --staged --name-only)
           git reset -q
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $FILES; do git add "$f"; done

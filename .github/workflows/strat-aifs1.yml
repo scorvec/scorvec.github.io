@@ -112,7 +112,7 @@ jobs:
           # is now, not the checkout's: a queued run checks out an older commit).
           FRESH=true
           if [ "$SKIP" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
-            PUB=$(timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/sst/anim/wave1_maps_aifs1_manifest.json \
+            PUB=$(timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show FETCH_HEAD:assets/sst/anim/wave1_maps_aifs1_manifest.json \
                   | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || true)
             if [ "$PUB" = "$D$T" ]; then FRESH=false; echo "cycle $D ${T}Z is already published: nothing to do"; fi
           fi
@@ -150,7 +150,7 @@ jobs:
       # here could overwrite a run recorded meanwhile.
       - name: AIFS single's run records as main has them now
         run: |
-          git fetch -q --depth 1 origin main
+          git fetch -q --filter=blob:none --depth 1 origin main
           git checkout FETCH_HEAD -- 'assets/sst/data/runs/*_aifs1.json' || echo "::warning::no AIFS single run records on main yet"
 
       # All at once (scripts/lib/parallel.sh); whichever product asks for a shared file first fetches it, the others
@@ -215,7 +215,7 @@ jobs:
           git reset -q
           MSG="data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $FILES; do git add "$f"; done

@@ -133,7 +133,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $OUTS
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             git add $OUTS

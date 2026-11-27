@@ -104,7 +104,7 @@ jobs:
       # not this run's checkout: a run that waited behind another writer would otherwise publish over its additions.
       - name: Latest committed references
         run: |
-          git fetch -q origin main
+          git fetch -q --filter=blob:none origin main
           for f in vt100_era5.nc heatflux100_archive.npz; do
             git checkout origin/main -- "scripts/strat/reference/$f" 2>/dev/null || echo "no $f on main yet"
           done
@@ -147,7 +147,7 @@ jobs:
             if [ -f "$R/$f" ]; then cp "$R/$f" new/; fi
           done
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             cp new/* "$R/"
             for f in new/*; do git add "$R/$(basename "$f")"; done

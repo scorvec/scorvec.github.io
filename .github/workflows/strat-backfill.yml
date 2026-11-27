@@ -207,7 +207,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             for d in /tmp/runs/*/; do python scripts/strat/run_record.py merge "$d" > /dev/null; done
             for f in $(git status --porcelain -- assets/sst/data/runs | awk '{print $2}'); do   # the records that gained runs

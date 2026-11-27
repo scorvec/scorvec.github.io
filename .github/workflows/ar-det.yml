@@ -184,7 +184,7 @@ jobs:
           # combine keeps the models this run did not make from main's CURRENT manifest, not the checkout's (a GDPS run
           # published while this one was queued would otherwise be dropped)
           M=assets/ar/anim/ar_det_manifest.json
-          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:$M" > /tmp/main_manifest.json 2>/dev/null; then
+          if timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show "FETCH_HEAD:$M" > /tmp/main_manifest.json 2>/dev/null; then
             cp /tmp/main_manifest.json "$M"
           else echo "::warning::could not read main's manifest; combining with the checkout's copy"; fi
           python - <<'PY'
@@ -208,7 +208,7 @@ jobs:
           for p in art/work/det_*.json; do m=$(basename "$p" .json); OUT="$OUT assets/ar/det_coast_${m#det_}.webp"; done
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done

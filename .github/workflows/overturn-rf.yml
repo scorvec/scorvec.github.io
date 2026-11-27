@@ -99,7 +99,7 @@ jobs:
           OUT=scripts/mjo/data/reference/overturn_rf_skill.json
           SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             cp "$SNAP/overturn_rf_skill.json" "$OUT"
             git add "$OUT"

@@ -105,7 +105,7 @@ jobs:
           case "$MODEL" in hrrr|rrfs|rdps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
           mkdir -p assets/models
           # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
-          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/$MODEL.json" > "/tmp/$MODEL.json" 2>/dev/null; then
+          if timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show "FETCH_HEAD:assets/models/$MODEL.json" > "/tmp/$MODEL.json" 2>/dev/null; then
             cp "/tmp/$MODEL.json" "assets/models/$MODEL.json"
           else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/$MODEL.json"; fi
           python scripts/models/models.py plan --models "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
@@ -162,7 +162,7 @@ jobs:
           cp "assets/models/$MODEL.json" "$SNAP/ours.json"
           git reset -q
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             # hrrr.json is shared with ecape.yml: keep OUR cycles and main's CURRENT "ecape" section (scripts/models/

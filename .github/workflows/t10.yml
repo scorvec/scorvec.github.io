@@ -60,7 +60,7 @@ jobs:
         run: |
           c=$(python scripts/strat/t10_maps.py --print-cycle)
           echo "newest IFS control run: $c"
-          timeout 60 git fetch -q --depth 1 origin main || true
+          timeout 60 git fetch -q --filter=blob:none --depth 1 origin main || true
           have=$(git show FETCH_HEAD:assets/sst/anim/t10_hres_manifest.json 2>/dev/null | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none)
           go=true; [ "$have" = "$c" ] && [ "$FORCE" != "true" ] && { go=false; echo "the page already shows $c"; }
           { echo "cycle=$c"; echo "go=$go"; } >> "$GITHUB_OUTPUT"
@@ -82,7 +82,7 @@ jobs:
           F=assets/sst/anim/t10_hres_manifest.json
           SNAP=$(mktemp -d); cp "$F" "$SNAP"/
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             cp "$SNAP/t10_hres_manifest.json" "$F"
             git add "$F"

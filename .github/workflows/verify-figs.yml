@@ -81,7 +81,7 @@ jobs:
           PATHS="$PATHS $(echo assets/verification/scores_{30,90,365,all}.json assets/verification/stations_{30,90}.json)"
           PATHS="$PATHS $(echo assets/verification/ens_scores_{30,90,365,all}.json)"
           for i in 1 2 3 4 5; do
-            timeout 120 git fetch origin main || { sleep 5; continue; }
+            timeout 120 git fetch --filter=blob:none origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD
             git add $(ls $PATHS 2>/dev/null)   # a window's files once the database holds that many runs
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi

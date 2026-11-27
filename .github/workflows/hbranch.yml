@@ -134,7 +134,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT $HSLP 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             perl -0pi -e "s/(hbranch_(?:flow|ridges|turnover|traj)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html

@@ -108,7 +108,7 @@ jobs:
           SNAP=$(mktemp -d)
           for f in $OUT; do [ -f "$f" ] && install -D "$f" "$SNAP/$f"; done
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "no changes" and fake success
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "no changes" and fake success
             git reset --hard origin/main
             (cd "$SNAP" && find . -type f -exec install -D {} "$GITHUB_WORKSPACE/{}" \;)
             for f in $OUT; do if [ -f "$f" ]; then git add "$f"; fi; done

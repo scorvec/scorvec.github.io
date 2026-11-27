@@ -101,7 +101,7 @@ jobs:
           OUT="scripts/mjo/data/reference/${{ inputs.cell }}_djf.nc assets/sst/${{ inputs.cell }}_djf_enso.webp"
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $OUT
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             git add $OUT

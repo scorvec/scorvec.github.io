@@ -56,7 +56,7 @@ jobs:
           [ -f "$FILES" ] || { echo "::warning::no overlap file written"; exit 0; }
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $FILES
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             git add -f $FILES

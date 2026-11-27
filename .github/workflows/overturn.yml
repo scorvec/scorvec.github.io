@@ -84,7 +84,7 @@ jobs:
           d="${DATE:-$(date -u +%Y%m%d)}"
           echo "date=$d" >> "$GITHUB_OUTPUT"
           # main's manifests as they are now: a queued run checks out the commit it was triggered at
-          timeout 60 git fetch -q --depth 1 origin main || true
+          timeout 60 git fetch -q --filter=blob:none --depth 1 origin main || true
           ver() { git show "FETCH_HEAD:assets/sst/anim/$1_manifest.json" 2>/dev/null | python3 -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none; }
           for p in overturn:mmsf_fc hbranch:hbranch_fc conv:tropconv; do
             fresh=true
@@ -222,7 +222,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             # the figures are <img>s on circulation.html: re-stamp their cache keys on main's current page
@@ -283,7 +283,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $OUT
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             perl -0pi -e "s/(hbranch_(?:flow|ridges)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
@@ -331,7 +331,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $OUT
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             git add $OUT

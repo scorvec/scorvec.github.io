@@ -33,7 +33,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for i in 1 2 3 4 5; do
-            git fetch -q origin main && git reset -q --hard origin/main
+            git fetch -q --filter=blob:none origin main && git reset -q --hard origin/main
             SHA=$(git ls-remote origin refs/heads/frames | cut -f1)
             [ -n "$SHA" ] || { echo "::error::no frames branch"; exit 1; }
             python3 - "$SHA" <<'PY'

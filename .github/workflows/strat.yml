@@ -166,7 +166,7 @@ jobs:
           FRESH=true
           if [ "${{ github.event.inputs.skip_published }}" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
             # main's manifest as it is now, not the checkout's (a queued run checks out an older commit)
-            PUB=$(timeout 60 git fetch -q --depth 1 origin main && git -C "$GITHUB_WORKSPACE" show FETCH_HEAD:assets/sst/anim/wave1_maps_manifest.json \
+            PUB=$(timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git -C "$GITHUB_WORKSPACE" show FETCH_HEAD:assets/sst/anim/wave1_maps_manifest.json \
                   | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || true)
             if [ "$PUB" = "$D$T" ]; then FRESH=false; echo "cycle $D ${T}Z is already published: nothing to do"; fi
           fi
@@ -201,7 +201,7 @@ jobs:
 
       # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
       - name: The run records as main has them now
-        run: git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+        run: git fetch -q --filter=blob:none --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
       # The products, all at once (scripts/lib/parallel.sh): each fetches its own files through the shared store (per-file
       # locks, one request budget) while the others draw, so the downloads overlap the drawing and every core is used.
@@ -401,7 +401,7 @@ jobs:
           T: ${{ needs.cycle.outputs.time }}
           MAIN: ${{ needs.cycle.outputs.main }}
         run: |
-          git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+          git fetch -q --filter=blob:none --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
           mkdir -p assets/sst/anim/jets
           source scripts/lib/parallel.sh
           par "AIFS-ENS vortex record" "the record keeps its previous runs" python scripts/strat/nh_vortex.py --record-only --members \
@@ -513,7 +513,7 @@ jobs:
 
       # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
       - name: The run records as main has them now
-        run: git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+        run: git fetch -q --filter=blob:none --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
       - name: E-P flux loop (GEFS)
         run: |
@@ -650,7 +650,7 @@ jobs:
           git reset -q
           MSG="data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $FILES; do git add "$f"; done

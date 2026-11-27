@@ -99,7 +99,7 @@ jobs:
           echo "resolved cycle: $C"
           # Already published, or older than the run the viewer shows? Then there is nothing to do. Read main's CURRENT
           # manifest, not the checkout's (a run queued behind another checks out the commit it was queued at).
-          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > /tmp/mv.json 2>/dev/null; then :; else echo '{}' > /tmp/mv.json; fi
+          if timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > /tmp/mv.json 2>/dev/null; then :; else echo '{}' > /tmp/mv.json; fi
           WHY=$(python - "$C" <<'PY'
           import json, sys
           c = sys.argv[1]; m = json.load(open("/tmp/mv.json"))
@@ -241,7 +241,7 @@ jobs:
           # its soundings removed its parts, so the pack refuses on the missing hours)
           if [ -d "$D/snd/_parts" ] && python scripts/ecape/to_soundings.py pack "$D" --hours "${HOURS[*]}"; then :
           else rm -rf "$D/snd"; echo "::warning::forecast soundings not written this cycle"; fi
-          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > /tmp/mv.json 2>/dev/null; then :; else echo '{}' > /tmp/mv.json; fi
+          if timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > /tmp/mv.json 2>/dev/null; then :; else echo '{}' > /tmp/mv.json; fi
           # meteogram series at the map's airports and extra cities (nearest cell, read back from the WebP files
           # above; scripts/models/points.py format) - optional: the maps publish without it
           python scripts/ecape/to_models.py points --cycle "$CYCLE" --out "$D" --manifest /tmp/mv.json \
@@ -255,7 +255,7 @@ jobs:
         run: |
           set -euo pipefail
           D="assets/models/data/hrrr/$CYCLE"
-          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > "$RUNNER_TEMP/mv_base.json" 2>/dev/null; then :; else echo '{}' > "$RUNNER_TEMP/mv_base.json"; fi
+          if timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show FETCH_HEAD:assets/models/hrrr.json > "$RUNNER_TEMP/mv_base.json" 2>/dev/null; then :; else echo '{}' > "$RUNNER_TEMP/mv_base.json"; fi
           # the viewer keeps only its newest HRRR run: ECAPE for an OLDER cycle has nowhere to go
           read -r NEWEST FLOOR < <(python -c "import json,sys;c=[x['cycle'] for x in json.load(open(sys.argv[1])).get('cycles',[])];print(max(c) if c else '-', min(c+[sys.argv[2]]))" "$RUNNER_TEMP/mv_base.json" "$CYCLE")
           if [ "$NEWEST" != "-" ] && [[ "$CYCLE" < "$NEWEST" ]]; then echo "::notice::the viewer already shows $NEWEST; ECAPE $CYCLE not published"; exit 0; fi
@@ -269,7 +269,7 @@ jobs:
           W="$RUNNER_TEMP/mv_wt"
           for i in 1 2 3 4 5; do
             rm -rf "$W"; git worktree prune
-            if ! timeout 120 git fetch -q origin main; then sleep 5; continue; fi
+            if ! timeout 120 git fetch -q --filter=blob:none origin main; then sleep 5; continue; fi
             git worktree add -q --detach "$W" FETCH_HEAD
             git -C "$W" show HEAD:assets/models/hrrr.json > "$RUNNER_TEMP/mv_base.json" 2>/dev/null || echo '{}' > "$RUNNER_TEMP/mv_base.json"
             python scripts/models/manifest_merge.py --part ecape --ours "$RUNNER_TEMP/ecape_entry.json" --base "$RUNNER_TEMP/mv_base.json" --out "$W/assets/models/hrrr.json"

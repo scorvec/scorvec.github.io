@@ -59,7 +59,7 @@ jobs:
         id: plan
         run: |
           set -euo pipefail
-          timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/ar/ar_ens.json > /tmp/ar_ens.json \
+          timeout 60 git fetch -q --filter=blob:none --depth 1 origin main && git show FETCH_HEAD:assets/ar/ar_ens.json > /tmp/ar_ens.json \
             || echo '{}' > /tmp/ar_ens.json
           python scripts/ar/ar_ens.py plan --published /tmp/ar_ens.json ${{ inputs.force == 'true' && '--force' || '' }} \
             | tee -a "$GITHUB_OUTPUT"
@@ -143,7 +143,7 @@ jobs:
           OUT="assets/ar/anim/ar_ens_manifest.json assets/ar/ar_ens.json $(ls assets/ar/ens_coast_*.webp 2>/dev/null | tr '\n' ' ')"
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done

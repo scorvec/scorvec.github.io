@@ -174,7 +174,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for i in 1 2 3 4 5; do
-            timeout 120 git fetch origin main || { sleep 5; continue; }
+            timeout 120 git fetch --filter=blob:none origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD
             git add assets/verification/upper.json
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi

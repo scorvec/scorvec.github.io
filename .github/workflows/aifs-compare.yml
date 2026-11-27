@@ -159,7 +159,7 @@ jobs:
           # score on top of main's current file as well as the checkout's: a queued run checks out the commit it
           # was dispatched at, possibly hours old, and would otherwise drop scores committed since
           MF=""
-          if timeout 120 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/verify/aifs_scores_v2.json > /tmp/main_scores.json; then
+          if timeout 120 git fetch -q --filter=blob:none --depth 1 origin main && git show FETCH_HEAD:assets/verify/aifs_scores_v2.json > /tmp/main_scores.json; then
             MF="--merge-from /tmp/main_scores.json"
           else echo "::warning::could not read main's scores; scoring on the checkout's copy only"; fi
           python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::verification scoring failed; continuing"
@@ -199,7 +199,7 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
