@@ -414,7 +414,7 @@
 <div class="jxs-leg" id="jxs-leg"></div>
 </div>
 <script src="/assets/jet_xsec.js?v=d380c84f43" defer></script>
-<script src="/assets/hbranch/drop.js?v=6b832dbe26a2" defer></script>
+<script src="/assets/hbranch/drop.js?v=f47ae7180fd2" defer></script>
 <script src="/assets/frames_root.js?v=37e1429f1f"></script>
 <script>
 var JETBR_SHOW = true;  // the jet-branch view of the North Pacific jet card; its leads follow scripts/mjo/data/reference/jet_branches_skill.json
@@ -447,7 +447,7 @@ window.STAGE = {
           a: {label: "Sector", items: [["atl","Atlantic, South America"],["afr","Africa, Indian Ocean"],["wpac","West Pacific, Australia"],["epac","East Pacific, Americas"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=tropconv_manifest.json&region=tropconv_" + a + "&regions=tropconv_" + a + "&start=0"; },
           about: "about-troughs", cap: function () { return "IFS-ENS 00Z; shaded where the members agree, trough axes drawn."; }},
-  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=202611270856"; }, fit: false,
+  gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=f47ae7180fd2"; }, fit: false,
           about: "about-gillrain", cap: function () { return "Gill model forced by IMERG rain and AIFS-ENS weeks 1–2."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS control"],["mslp_wind_gdps","GDPS"]]},
           frame: function (a) { return (function (r) { return r === "mslp_wind_gdps" ? "sst_anim.html?embed=1&manifest=gdps_wind_manifest.json&region=gdps_wind&regions=gdps_wind" : "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=" + r + "&regions=" + r; })(a || "mslp_wind"); }, about: "about-mslp", cap: function (a) { return /gdps/.test(a || "") ? "GDPS, one run, to day 10." : /aifs0|aifs1|hres/.test(a || "") ? "One run, days 1–15." : "Ensemble mean, days 0–15."; }},
@@ -459,15 +459,15 @@ window.STAGE = {
   dt: {label: "Dynamic tropopause", a: {label: "Field", items: [["dt","θ on 2 PVU"],["dt_pv330","PV on 330 K"],["dt_pv350","PV on 350 K"],["cap","Polar-cap height"]]},
           b: function (a) { return a === "cap" ? null : {label: "Region", items: [["nh","Northern Hemisphere"],["npac","North Pacific"],["na","North America"],["atl","North Atlantic & Europe"],["asia","East Asia"],["sam","South America"],["tatl","Tropical Atlantic"]]}; },
           frame: function (a, b) { return a === "cap" ? null : (function (r) { return "sst_anim.html?embed=1&manifest=dt_manifest.json&region=" + r + "&regions=" + r; })(a + (b && b !== "nh" ? "_" + b : "")); },
-          img: function () { return "assets/sst/dt_cap.webp?v=6b832dbe26a2"; }, fit: false, about: "about-dt",
+          img: function () { return "assets/sst/dt_cap.webp?v=f47ae7180fd2"; }, fit: false, about: "about-dt",
           cap: function (a) { return a === "cap" ? "IFS control analyses, then IFS control, AIFS single, GFS and GDPS to day 10." : "IFS control, 6-hourly to day 10."; }},
   aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},
           frame: function (a) { return a === "zonal" ? "sst_anim.html?embed=1&manifest=aam_zonal_manifest.json&region=aam_zonal" : null; },
-          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=6b832dbe26a2"; },
+          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=f47ae7180fd2"; },
           about: function (a) { return a === "phase" || a === "zonal" ? "about-aam_" + a : "about-aam"; }, cap: function (a) { return {series: "Against 1991–2020; GFZ in green.", trend: "Successive runs.", phase: "AAM against its tendency.", zonal: "Latitude–pressure."}[a]; }},
   torque: {label: "Surface torques", a: {label: "View", items: [["maps","Torque maps (loop)"],["series","Series"],["ranges","By mountain range"]]},
           frame: function (a) { return a === "maps" ? "sst_anim.html?embed=1&manifest=torque_manifest.json&region=torque" : null; },
-          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=6b832dbe26a2"; },
+          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=f47ae7180fd2"; },
           about: "about-torque", cap: function (a) { return a === "maps" ? "IFS-ENS, days 1–15." : a === "series" ? "Against the actual change in AAM." : "By barrier."; }},
   hadley: {label: "Hadley cells", a: {label: "Part", items: [["cells","The cells"],["branches","Outflow and descent"],["turnover","Turnover"],["slp","Sea-level pressure"]]},
           b: function (a) { return a === "branches" ? {label: "View", items: [["dt","Outflow on the tropopause, daily"],["map","Descent and ridges, weekly"],["fc","Descent and ridges, forecast"],["flow","Outflow and descent by basin"],["ridges","Ridges and highs by basin"]]}
@@ -480,15 +480,15 @@ window.STAGE = {
             if (a === "branches" && b === "fc") return "sst_anim.html?embed=1&manifest=hbranch_fc_manifest.json&region=hbranch_fc_" + c + "&regions=hbranch_fc_" + c + "&start=manifest";
             return b === "fc" ? "sst_anim.html?embed=1&manifest=mmsf_fc_manifest.json&region=mmsf_fc_" + c + "&regions=mmsf_fc_" + c + "&start=manifest" : b === "mmsf" ? "sst_anim.html?embed=1&manifest=mmsf_hist_manifest.json&region=mmsf_hist" : b === "map" ? "sst_anim.html?embed=1&manifest=hbranch_hist_manifest.json&region=hbranch_hist" : b === "dt" ? "sst_anim.html?embed=1&manifest=hbranch_dt_manifest.json&region=hbranch_dt" : null; }, fit: false,
           dom: function (a, b) { return b === "drop" ? "hbd-view" : null; },
-          img: function (a, b) { return {series: "assets/sst/hadley_timeseries.webp?v=202611270901", enso: "assets/sst/hadley_enso.webp?v=202611270901", djf: "assets/sst/hadley_djf_enso.webp?v=6b832dbe26a2", flow: "assets/sst/hbranch_flow.webp?v=202611270855", ridges: "assets/sst/hbranch_ridges.webp?v=202611270855", turnover: "assets/sst/hbranch_turnover.webp?v=202611270244", traj: "assets/sst/hbranch_traj.webp?v=202611270244"}[b]; },
+          img: function (a, b) { return {series: "assets/sst/hadley_timeseries.webp?v=f47ae7180fd2", enso: "assets/sst/hadley_enso.webp?v=f47ae7180fd2", djf: "assets/sst/hadley_djf_enso.webp?v=f47ae7180fd2", flow: "assets/sst/hbranch_flow.webp?v=f47ae7180fd2", ridges: "assets/sst/hbranch_ridges.webp?v=f47ae7180fd2", turnover: "assets/sst/hbranch_turnover.webp?v=f47ae7180fd2", traj: "assets/sst/hbranch_traj.webp?v=f47ae7180fd2"}[b]; },
           about: function (a) { return a === "cells" ? "about-hadley" : a === "slp" ? "about-hslp" : "about-hbranch"; },
           cap: function (a, b) { if (/^fc/.test(b || "")) return "Members less their model's drift, shown where 80% agree."; return {enso: "Every El Niño since 1963.", djf: "Every winter since 1959/60.", drop: "Click between 20°S and 20°N to drop a particle.", traj: "Week's median, 6° × 3° cells.", series: "Analyses and the three ensembles, against ERA5 1991–2020.", flow: "Analyses and the three ensembles, against ERA5 1991–2020.", ridges: "Analyses and the three ensembles, against ERA5 1991–2020.", turnover: "Back-trajectories against ERA5's, 1991–2020."}[b] || "Analyses against ERA5 1991–2020."; }},
   walker: {label: "Walker circulation", a: {label: "View", items: [["loop","Streamfunction loop"],["series","Strength and position"],["enso","El Niño years"],["djf","Winter against ENSO"],["fc_blend","Forecast: three ensembles"],["fc_aifs","Forecast: AIFS-ENS"],["fc_ifs","Forecast: IFS-ENS"],["fc_gefs","Forecast: GEFS"],["basins","By ocean basin"],["weekly","Weekly departure from Pacific forcing"]]},
           frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=walker_hist_manifest.json&region=walker_hist" : /^fc_/.test(a || "") ? "sst_anim.html?embed=1&manifest=walker_fc_manifest.json&region=walker_" + a + "&regions=walker_" + a + "&start=manifest" : null; }, fit: false,
-          img: function (a) { return a === "series" ? "assets/sst/walker_timeseries.webp?v=202611270901" : a === "enso" ? "assets/sst/walker_enso.webp?v=202611270901" : a === "djf" ? "assets/sst/walker_djf_enso.webp?v=6b832dbe26a2" : "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=6b832dbe26a2"; },
+          img: function (a) { return a === "series" ? "assets/sst/walker_timeseries.webp?v=f47ae7180fd2" : a === "enso" ? "assets/sst/walker_enso.webp?v=f47ae7180fd2" : a === "djf" ? "assets/sst/walker_djf_enso.webp?v=f47ae7180fd2" : "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=f47ae7180fd2"; },
           about: "about-walker", cap: function (a) { return a === "series" ? "Analyses and the three ensembles, against ERA5 1991–2020." : a === "enso" ? "Every El Niño since 1963." : a === "djf" ? "Every winter since 1959/60." : /^fc_/.test(a || "") ? "Members less their model's drift, shown where 80% agree." : a === "basins" ? "Regression and Gill model, ENSO removed." : a === "loop" ? "7-day mean analyses against ERA5." : "Weekly χ200 departure from the Pacific-forced part."; }},
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
-          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=6b832dbe26a2"; },
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=f47ae7180fd2"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Cores marked." : "Members and mean against the normal band."; }},
   pacjet: {label: "North Pacific jet", a: {label: "View", items: [["maps","Jet maps"],["axis","Jet axis"],["ext","Extension watch"],["phase","Phase & impacts"],["torque","Torque (research)"]].concat(JETBR_SHOW ? [["branches","Jet branches"]] : [])},
           b: function (a) { return a === "maps" ? {label: "Period", items: [["wk1","Week 1"],["wk2","Week 2"],["loop","Day by day (loop)"]]}
