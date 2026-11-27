@@ -1,6 +1,8 @@
-# Crawlers that gather pages to train AI models are not welcome. Search engines, and AI search that cites and
-# links the page it answers from, are. (Google-Extended and Applebot-Extended opt out of Gemini and Apple model
-# training only: Googlebot and Applebot keep indexing for search.)
+# Crawlers that gather pages to train AI models may read the written work: the home, about, resume and research
+# pages, the studies, the Methods guides and the explainers. The live forecast pages, the data and the images stay
+# closed to them. Search engines, and AI search that cites and links the page it answers from, may read everything.
+# (Google-Extended and Applebot-Extended govern Gemini and Apple model training only: Googlebot and Applebot keep
+# indexing for search.)
 User-agent: GPTBot
 User-agent: ClaudeBot
 User-agent: anthropic-ai
@@ -11,6 +13,18 @@ User-agent: Meta-ExternalAgent
 User-agent: Bytespider
 User-agent: Amazonbot
 User-agent: Diffbot
+Allow: /$
+Allow: /index.html
+Allow: /about.html
+Allow: /resume.html
+Allow: /research.html
+Allow: /aifs-aam-budget.html
+Allow: /torque-enso.html
+Allow: /studies/
+Allow: /guides/
+Allow: /topics/
+Allow: /skewt/methodology.html
+Allow: /llms.txt
 Disallow: /
 
 User-agent: *
