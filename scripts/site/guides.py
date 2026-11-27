@@ -99,6 +99,13 @@ GUIDES = [
         "reforecast, the drift correction, the MJO, tercile calibration, teleconnections, regimes and scenarios.",
     ),
     dict(
+        slug="ens-anomalies",
+        page="/ens-anomalies.html",
+        name="world ensemble maps",
+        desc="How the four-ensemble maps are made and read: the days and periods, the anomaly and its dots, the "
+        "normals, the change from an earlier run, the super-ensemble, the weather regimes and the clusters.",
+    ),
+    dict(
         slug="verification",
         page="/verification.html",
         name="model verification page",

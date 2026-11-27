@@ -1,0 +1,241 @@
+<section id="about">
+<h2>The page</h2>
+<p>Four global ensembles side by side, to day 15: 2&nbsp;m temperature, 500&nbsp;hPa height and sea-level pressure,
+each as the ensemble's mean anomaly, its members' spread and how the run moved from an earlier one. Two further views
+sort the members into weather regimes and into clusters.</p>
+<p><b>Reading a map.</b> Colour is the ensemble-mean anomaly. Dots mark where enough members agree on its sign to pass
+a test; colour without dots means the members are split, so read it as a hint and not a forecast. Hovering gives the
+number of members that agree.</p>
+<div class="tbl"><table>
+<tr><th>Ensemble</th><th>Members</th><th>Grid</th><th>Runs</th></tr>
+<tr><td><b>IFS-ENS</b>, ECMWF's physics ensemble</td><td>50 perturbed members</td><td>2&nbsp;m temperature 0.1&deg;, the rest 0.25&deg;</td><td>00 and 12&nbsp;UTC to day&nbsp;15; 06 and 18&nbsp;UTC to day&nbsp;5</td></tr>
+<tr><td><b>AIFS-ENS</b>, ECMWF's machine-learned ensemble</td><td>control and 50 perturbed</td><td>0.25&deg;</td><td>00, 06, 12 and 18&nbsp;UTC</td></tr>
+<tr><td><b>GEFS</b>, NOAA</td><td>control and 30 perturbed</td><td>0.5&deg;</td><td>00, 06, 12 and 18&nbsp;UTC</td></tr>
+<tr><td><b>GEPS</b>, Environment and Climate Change Canada</td><td>control and 20 perturbed</td><td>0.5&deg;</td><td>00 and 12&nbsp;UTC</td></tr>
+<tr><td><b>Super-ensemble</b>, the four combined</td><td>153 members, a quarter of the weight per ensemble</td><td>0.5&deg; cells</td><td>00 and 12&nbsp;UTC</td></tr>
+</table></div>
+<p><b>When a run appears.</b> About 5&frac12;&nbsp;hours after its start for GEPS, 6&frac12; for GEFS, 8 for AIFS-ENS
+and 8&frac12; for IFS-ENS. A run is shown as it arrives: days 1&ndash;5 first, then days 6&ndash;10, then the rest with
+the change maps, regimes and clusters. IFS-ENS's 2&nbsp;m temperature comes first from its 0.25&deg; files and is
+replaced by the 0.1&deg; one about 13&frac12;&nbsp;hours after the start (11 for a 06 or 18&nbsp;UTC run). The page
+keeps each ensemble's four newest runs; the buttons beside &ldquo;Run&rdquo; pick one.</p>
+<p><b>Grids.</b> Each ensemble is shown on its own published grid: finer grids are not smoothed and coarser ones are
+not interpolated before colouring. The 0.1&deg; files carry no control member, which is why IFS-ENS has 50 members
+here. GEPS's 0.5&deg; is the finest its source publishes.</p>
+</section>
+
+<h2>The maps</h2>
+
+<section id="days">
+<h3>Days and periods</h3>
+<ul>
+<li>A day is a calendar day in UTC: the mean of the 06, 12, 18 and 24&nbsp;UTC fields.</li>
+<li>A 00&nbsp;UTC run has 15 full days, and day&nbsp;1 is the day it starts. A 06, 12 or 18&nbsp;UTC run has 14: day&nbsp;1
+is the next day, and its part-days at each end are left out. GEFS and GEPS run to 16 days and have one more. An
+IFS-ENS run from 06 or 18&nbsp;UTC has 5.</li>
+<li>The periods are days 1&ndash;5, 6&ndash;10 and 11&ndash;15 (11&ndash;14 for a 06, 12 or 18&nbsp;UTC run), each the mean of
+its days.</li>
+<li>A member missing any field in a period is left out of it. A period with fewer than 80&nbsp;% of the members is not
+drawn.</li>
+</ul>
+</section>
+
+<section id="anomaly">
+<h3>Anomaly and the dots</h3>
+<p>Each member's mean less the 1991&ndash;2020 normal for the same days; the map is the mean of those anomalies.</p>
+<p>The dots mark where at least <i>k</i> of the <i>n</i> members give the anomaly the same sign as their mean, with
+<i>k</i> the smallest number that passes a two-sided sign test against an even split at 5&nbsp;%: 33 of 50 or 51, 22 of
+31, 16 of 21.</p>
+<p>The anomalies are the models' raw output against the reanalysis. They include the warming since 1991&ndash;2020 (in
+500&nbsp;hPa height, a positive anomaly across the tropics) and each model's own biases; no drift correction is applied
+to the maps.</p>
+</section>
+
+<section id="normals">
+<h3>The normals</h3>
+<ul>
+<li><b>2&nbsp;m temperature:</b> ERA5-Land over land and ERA5 over the sea, monthly means at 00, 06, 12 and 18&nbsp;UTC
+so the normal samples the daily cycle as the forecast does, on the IFS's 0.1&deg; grid. ERA5 is interpolated from its
+sea points only, so a coastal mountain does not chill the water beside it.</li>
+<li><b>On the coarser grids</b> that normal is averaged over each cell and moved by 6.5&nbsp;&deg;C per kilometre from the
+IFS's height to the model's own, so a valley or mountain cell is compared with a normal at its own height.</li>
+<li><b>500&nbsp;hPa height and sea-level pressure:</b> ERA5 at 1.5&deg;, daily means of the four synoptic hours,
+interpolated to each grid.</li>
+<li><b>Through the year</b> each normal is a smooth curve (the mean and three annual harmonics, fitted so its month
+averages match the twelve monthly normals), read at each day.</li>
+<li><b>High ground:</b> the sea-level pressure anomaly is not drawn where the model's ground is above 1,500&nbsp;m.
+Pressure &ldquo;at sea level&rdquo; there is an extrapolation that each model and the reanalysis make differently.</li>
+</ul>
+</section>
+
+<section id="sigma">
+<h3>Standardized anomalies (&sigma;)</h3>
+<p>For 500&nbsp;hPa height and sea-level pressure the anomaly can be shown in standard deviations: the ensemble-mean
+anomaly divided by how much an anomaly over the <i>same averaging period</i> normally varies. A 5-day mean varies less
+than a single day, so a period is divided by the spread of 5-day means, not of days.</p>
+<ul>
+<li>The standard deviations come from ERA5 at 1.5&deg;, 1991&ndash;2020: each cell's anomalies from the normal curve,
+a linear trend removed, averaged over the period's length, their variance fitted as a smooth curve through the year.</li>
+<li>Colours run to &plusmn;3&sigma;. The dots use the same members-agree test as the anomaly.</li>
+<li>Across the tropics 500&nbsp;hPa height reads several standard deviations high: its day-to-day spread is small
+there and the warming since 1991&ndash;2020 is not.</li>
+<li>The change maps stay in metres and hectopascals.</li>
+</ul>
+</section>
+
+<section id="change">
+<h3>Change from an earlier run</h3>
+<p>This run's ensemble mean less that of the same ensemble's run 12&nbsp;hours earlier, or of the run picked with the
+&ldquo;vs &hellip; h earlier&rdquo; buttons (6 to 48&nbsp;hours earlier, whichever the ensemble ran; GEPS runs twice a day, so 12, 24, 36 and 48 only), over the same
+calendar days, on common 0.5&deg; cells.</p>
+<ul>
+<li><b>Dots</b> mark a significant change: Welch's <i>t</i>-test on the two runs' members at every point, with the
+false discovery rate held at 10&nbsp;% over the map, so at most a tenth of the dotted points are expected to be chance.</li>
+<li><b>Shading without dots</b> is a change within what the two runs' members could give by chance.</li>
+<li>In the first days, where the ensembles are confident, even a small change can be significant: read the size from
+the colours.</li>
+<li>The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the earlier run holds.</li>
+</ul>
+</section>
+
+<section id="spread">
+<h3>Spread</h3>
+<p>How far the members disagree: their standard deviation for each day or period, on the same 0.5&deg; cells as the
+change maps. On the finer grids it is therefore the spread of 0.5&deg; cell means. The super-ensemble has no spread
+maps.</p>
+</section>
+
+<section id="super">
+<h3>The super-ensemble</h3>
+<p>The IFS-ENS, AIFS-ENS, GEFS and GEPS runs from the same start, pooled with equal weight per ensemble and not per
+member. Each ensemble counts a quarter, so AIFS-ENS's 51 members count as much as GEPS's 21; by member, the two ECMWF
+ensembles would carry two thirds of the vote.</p>
+<ul>
+<li><b>Where:</b> on 0.5&deg; cells, on the days all four runs hold (15 from 00&nbsp;UTC, 14 from 12&nbsp;UTC), and only
+where every ensemble has enough complete members.</li>
+<li><b>Anomaly:</b> the mean of the four ensemble-mean anomalies, each against its own normal.</li>
+<li><b>Dots:</b> where the weighted share of members agreeing on the sign passes a two-sided sign test at 5&nbsp;% on
+the weighted count (about 59&nbsp;% with all 153 members).</li>
+<li><b>Change:</b> from the super-ensemble run 12, 24, 36 or 48&nbsp;hours earlier, Welch's test on the weighted means,
+dotted at the same 10&nbsp;% false discovery rate.</li>
+<li><b>Runs:</b> 00 and 12&nbsp;UTC only, because GEPS has no 06 or 18&nbsp;UTC run and IFS-ENS's reach day&nbsp;5. It
+is made again when one of its four runs is.</li>
+</ul>
+</section>
+
+<h2>Weather regimes</h2>
+
+<section id="regimes">
+<h3>How a member gets its regime</h3>
+<p>Every member's 500&nbsp;hPa height on every day is sorted into one of four recurring patterns, or into none, in two
+sectors: the Euro-Atlantic (20&ndash;80&deg;N, 90&deg;W&ndash;30&deg;E) and North America and the Pacific
+(20&ndash;80&deg;N, 170&ndash;30&deg;W). They are the regimes of the <a href="/subseasonal.html">extended-range
+page</a>, classified the same way.</p>
+<ul>
+<li><b>The patterns:</b> four per sector and season from NCEP/NCAR reanalysis 1991&ndash;2020 (k-means on 5-day mean
+height anomalies), one set for October&ndash;March and one for April&ndash;September.</li>
+<li><b>The label:</b> a member's 5-day running mean anomaly goes to the nearest pattern, or to &ldquo;no regime&rdquo;
+when its pattern correlation with it is below 0.25.</li>
+<li><b>Drift:</b> none of these models has a reforecast, so each ensemble's drift is learned from its own past runs
+(the ensemble-mean anomaly at each lead less what the run started on that valid day showed on its first day) and
+removed once ten runs verify a lead, shrunk towards zero by <i>n</i>&nbsp;/&nbsp;(<i>n</i>&nbsp;+&nbsp;10).</li>
+</ul>
+</section>
+
+<section id="timeline">
+<h3>The timeline</h3>
+<p>The percentage of members in each regime on each valid date: first the four ensembles' mean, then each ensemble's
+most frequent regime with its share. A click on an ensemble's name gives all of its shares.</p>
+<ul>
+<li><b>Pale or coloured:</b> a share is pale unless it differs from that regime's 1991&ndash;2020 frequency within 15
+days of the date, by a 95&nbsp;% interval from resampling the members and the reanalysis years 1,000 times.</li>
+<li><b>The four-ensemble rows</b> average the ensembles' shares with equal weight per ensemble, and are pale unless the
+mean differs from the normal by more than 1.96 standard errors.</li>
+<li>Every ensemble is on the same dates; each row names its run. An ensemble whose newest run is still arriving keeps
+the run before.</li>
+</ul>
+</section>
+
+<section id="scenarios">
+<h3>Scenarios and changes</h3>
+<ul>
+<li><b>Scenarios</b> are the regimes that hold at least six members of the chosen ensemble on the day, or on a period's
+middle day. Each shows that regime's share in every ensemble, the normal as a tick, and the mean anomaly of just its
+members, dotted where enough of them agree on its sign (fewer than six members can never pass the test).</li>
+<li><b>Since the previous run:</b> each regime's share against the same ensemble's run 12&nbsp;hours earlier, coloured
+where Fisher's exact test on the two runs' member counts is significant with the false discovery rate held at
+10&nbsp;%. Only the regimes that moved are drawn.</li>
+</ul>
+</section>
+
+<h2>Clusters</h2>
+
+<section id="clusters">
+<h3>How the groups are made</h3>
+<p>The members of the four ensembles' runs from the same start (the newest 00 or 12&nbsp;UTC run all four have
+published) are pooled and grouped into the scenarios their spread supports.</p>
+<ul>
+<li><b>When:</b> days 3&ndash;5, 6&ndash;10 and 11&ndash;15, and each day on its own.</li>
+<li><b>Where:</b> the Euro-Atlantic, North America and the Pacific (the regimes' boxes, outlined on the maps), and the
+hemisphere north of 20&deg;N.</li>
+<li><b>What is compared:</b> each member's 500&nbsp;hPa height and sea-level pressure anomalies on a 2.5&deg; grid,
+each divided by its typical 1991&ndash;2020 spread for the time of year. Each ensemble carries a quarter of the
+weight.</li>
+<li><b>Grouping:</b> the leading patterns of the members' differences from the four-ensemble mean (enough to explain
+80&nbsp;%) are grouped by weighted k-means (100 starts) into 1 to 5 clusters.</li>
+</ul>
+</section>
+
+<section id="cluster-tests">
+<h3>When more than one scenario is shown</h3>
+<p>A split is shown only when it passes all of these:</p>
+<ul>
+<li>it cuts the spread by more than it does in 95&nbsp;% of 100 synthetic ensembles with the same spread and no
+clusters;</li>
+<li>every cluster holds at least 5&nbsp;% of the weight;</li>
+<li>resampling the members gives the same number of clusters at least 60&nbsp;% of the time;</li>
+<li>the split is not just the models differing from each other: a permutation test of ensemble against cluster
+(2,000 permutations) must pass at 5&nbsp;%. Where it fails the page says the ensembles differ and shows each
+ensemble's own mean (&ldquo;Disagree&rdquo; in the strip of periods).</li>
+</ul>
+<p><b>Two ways.</b> Most often the members form one spread and no split passes. The page then shows that spread's main
+difference when one pattern clearly leads it: the mean of the members on each side of the four-ensemble mean along
+their leading pattern, when its lead over the second pattern is larger than in 90&nbsp;% of 1,000 synthetic ensembles.
+Where neither passes, the page shows one scenario, the four-ensemble mean.</p>
+<p>Once a model's drift with lead is known (from ten verified 00&nbsp;UTC runs per lead), the clustering and these
+tests run on the corrected fields.</p>
+</section>
+
+<section id="cluster-maps">
+<h3>Reading a scenario</h3>
+<ul>
+<li><b>Probability:</b> the scenario's share of the weight, with each ensemble's own share beside it.</li>
+<li><b>Nearest regime:</b> the regime whose pattern correlates best with the scenario's mean 500&nbsp;hPa anomaly
+(&ldquo;no regime&rdquo; below 0.25).</li>
+<li><b>Shading:</b> the anomaly, where the scenario's members agree on its sign. Lines are its mean height (every
+6&nbsp;dam) and pressure (every 4&nbsp;hPa).</li>
+<li><b>Dots:</b> where the scenario's mean differs from the four-ensemble mean (500 random sets of as many members,
+false discovery rate 10&nbsp;%).</li>
+<li><b>Letters:</b> a scenario keeps its letter while more than half of its members stay together from one day to the
+next; a new letter appears only when a scenario splits off. Windows are lettered among themselves, so a window's A and
+a day's A need not be the same scenario.</li>
+<li><b>&ldquo;Why this answer&rdquo;</b> shows how the members moved from the earlier period's groups, with the tests
+behind the answer and the runs pooled.</li>
+</ul>
+</section>
+
+<h2>Under the hood</h2>
+
+<section id="how">
+<h3>How the page works</h3>
+<p>Nothing on the page is a picture. Each model, field and period is shipped as the ensemble's own numbers (the mean
+anomaly to 0.25&nbsp;&deg;C, 4&nbsp;m or 0.4&nbsp;hPa, the number of members agreeing, and the ensemble mean) as a
+lossless image, and your browser colours, dots, contours and reads it. The 0.1&deg; maps come in 36 tiles loaded as
+you zoom in; the world view draws every fifth point.</p>
+<p class="src"><b>Sources.</b> ECMWF open data (IFS-ENS, AIFS-ENS; &copy; ECMWF, CC&nbsp;BY&nbsp;4.0, Google Cloud
+mirror); NOAA GEFS through the NOAA Open Data Dissemination program (AWS); ECCC GEPS (Data Source: Environment and
+Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC
+Data Servers End-use Licence</a>). Normals: ERA5-Land and ERA5 from the Copernicus Climate Data Store and ERA5 through
+WeatherBench&nbsp;2; contains modified Copernicus Climate Change Service information. Model output as published,
+uncorrected. Boundaries: Natural Earth.</p>
+</section>
