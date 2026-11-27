@@ -2,8 +2,12 @@
 
    window.vcharts.draw(host, spec) with spec = {
      panels: [{ title, u, v, flip, series, refs, dodge, ends, markers, whiskers, height, tipHead, tipFmt }],
-     cols, minWidth, height, legend: [{ name, color, shape, note }], keys: ["a line of key text"], label, data: { href, text }
+     cols, minWidth, height, legend: [{ name, color, shape, note }], keys: ["a line of key text"], label, data: { href, text },
+     share: () => url
    }
+   label names the chart in a saved file (else its card's heading). Under every chart a line saves it as a PNG or an
+   SVG (the legend, keys and panels with the page's styles written in) or its points as a CSV table, links data, and
+   with share copies the link that opens the plot again (and puts it in the address bar).
    u (the independent axis): { type: "linear" | "log" | "logit" | "time", domain, ticks: [number | { u, label }], fmt, label }
    v (the value axis): { domain, floor, ceil, fmt, label }
    series: [{ name, color, shape, note, line, markers, pts: [{ u, v, lo, hi, on }] }]; a null v breaks the line,
@@ -77,6 +81,7 @@
     for (const s of series) for (const q of s.pts) if (q.v != null) { vals.push(q.v); if (whiskers && q.lo != null && q.hi != null) ends.push(q.lo, q.hi); }
     for (const r of p.refs || []) if (r.v != null && !r.soft) vals.push(r.v);
     let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (hi - lo < 1e-9 * Math.max(Math.abs(lo), Math.abs(hi))) hi = lo;   // equal but for rounding: one value, not a range to cut into ticks
     const reach = (hi - lo || Math.abs(hi) || 1) * 0.6;
     if (ends.length) { lo = Math.max(Math.min(lo, ...ends), lo - reach); hi = Math.min(Math.max(hi, ...ends), hi + reach); }
     if (v.domain) [lo, hi] = v.domain;
@@ -277,7 +282,141 @@
     grid.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
     host.append(grid, tip);
     for (const p of spec.panels) grid.append(panel(p, pw, H, host));
-    if (spec.data) host.append(el("p", "vdata", `<a href="${esc(spec.data.href)}">${esc(spec.data.text || "The numbers behind this chart (JSON)")}</a>`));
+    // the saving line: the chart as a picture or its numbers as a table, and the file it was drawn from
+    const save = el("p", "vdata", "Save this chart: ");
+    [["PNG", () => toPng(host, spec)], ["SVG", () => toSvg(host, spec)], ["CSV", () => toCsv(host, spec)]].forEach(([name, f], k) => {
+      const b = el("button", "vsave", name);
+      b.type = "button";
+      b.addEventListener("click", f);
+      save.append(...(k ? [" · ", b] : [b]));
+    });
+    if (spec.data) {
+      const a = el("a", null, esc(spec.data.text || "JSON"));
+      a.href = spec.data.href;
+      save.append(" · ", a);
+    }
+    if (spec.share) {   // a link that opens this plot again
+      const b = el("button", "vsave", "Copy link");
+      b.type = "button";
+      b.addEventListener("click", () => {
+        const url = spec.share(), done = () => { b.textContent = "Link copied"; setTimeout(() => { b.textContent = "Copy link"; }, 2000); };
+        history.replaceState(null, "", url);
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(done, done);
+      });
+      save.append(" · ", b);
+    }
+    host.append(save);
+  }
+
+  // ── saving: one SVG of the legend, the panels and a source line, with the page's styles written into it, so that
+  // it reads the same out of the page; a PNG of it at twice the size; the points as a long CSV table
+  const STYLE = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linejoin", "stroke-linecap", "opacity",
+    "font-size", "font-weight", "paint-order", "text-anchor"];
+  const FONTS = "'Source Sans 3', 'Helvetica Neue', Arial, sans-serif";
+  const plain = html => { const d = document.createElement("div"); d.innerHTML = html || ""; return d.textContent.replace(/\s+/g, " ").trim(); };
+  const titleOf = (host, spec) => spec.label || host.closest("section")?.querySelector("h2")?.textContent.trim() || "Chart";
+  const slugOf = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 60) || "chart";
+  function download(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  // a panel's SVG with every element's computed style inline, the hover layer left out
+  function inlined(svg) {
+    const copy = svg.cloneNode(true), src = [svg, ...svg.querySelectorAll("*")], dst = [copy, ...copy.querySelectorAll("*")];
+    src.forEach((e, k) => {
+      const cs = getComputedStyle(e);
+      dst[k].setAttribute("style", STYLE.map(p => `${p}:${cs.getPropertyValue(p)}`).join(";") + `;font-family:${FONTS}`);
+    });
+    copy.querySelectorAll(".vhover, .vhit").forEach(e => e.remove());
+    return copy;
+  }
+  function composed(host, spec) {
+    const W = Math.floor(host.clientWidth), cs = getComputedStyle(host);
+    const ink = cs.getPropertyValue("--ink").trim() || "#1c1c1a", ink2 = cs.getPropertyValue("--ink2").trim() || "#3d3b37";
+    const muted = cs.getPropertyValue("--muted").trim() || "#6f6b64", bg = cs.getPropertyValue("--panel").trim() || "#fff";
+    const parts = [], pad = 16;
+    let y = pad + 18;
+    parts.push(`<text x="${pad}" y="${y}" style="font:600 17px ${FONTS};fill:${ink}">${esc(titleOf(host, spec))}</text>`);
+    // the legend, wrapped to the width
+    let x = pad;
+    y += 26;
+    for (const s of spec.legend || []) {
+      const text = s.name + (s.note ? "  " + s.note : ""), w = 26 + text.length * 7.2;
+      if (x + w > W - pad && x > pad) { x = pad; y += 22; }
+      parts.push(`<g transform="translate(${x + 8},${y - 4})"><path d="M-8,0H8" stroke="${s.color}" stroke-width="2"/>${dot(s, true, 4.5)}</g>` +
+        `<text x="${x + 22}" y="${y}" style="font:13px ${FONTS};fill:${ink2}">${esc(text)}</text>`);
+      x += w + 14;
+    }
+    for (const k of spec.keys || []) {
+      y += 20;
+      parts.push(`<text x="${pad}" y="${y}" style="font:12px ${FONTS};fill:${muted}">${esc(plain(k))}</text>`);
+    }
+    const grid = host.querySelector(".vgridrow"), top = y + 14, origin = grid.getBoundingClientRect();
+    let bottom = top;
+    for (const p of host.querySelectorAll(".vpanel")) {
+      const svg = p.querySelector("svg"), title = p.querySelector(".vtitle");
+      if (!svg) continue;
+      const r = p.getBoundingClientRect(), sr = svg.getBoundingClientRect(), ox = r.left - origin.left + pad, oy = top + sr.top - origin.top;
+      if (title) {
+        const main = title.cloneNode(true), sub = main.querySelector("small");
+        if (sub) sub.remove();
+        parts.push(`<text x="${ox}" y="${oy - (sub ? 24 : 8)}" style="font:600 13.5px ${FONTS};fill:${ink}">${esc(main.textContent.trim())}</text>`);
+        if (sub) parts.push(`<text x="${ox}" y="${oy - 7}" style="font:12.5px ${FONTS};fill:${ink2}">${esc(sub.textContent.trim())}</text>`);
+      }
+      const c = inlined(svg), vb = svg.viewBox.baseVal;
+      c.setAttribute("x", ox); c.setAttribute("y", oy);
+      c.setAttribute("width", sr.width); c.setAttribute("height", sr.width * vb.height / vb.width);
+      parts.push(c.outerHTML);
+      bottom = Math.max(bottom, oy + sr.width * vb.height / vb.width);
+    }
+    // the line under the figure that names its observations and runs, wrapped to the width, then where it came from
+    let note = host.nextElementSibling;
+    while (note && !(note.matches("p.note") && note.textContent.trim())) note = note.nextElementSibling;
+    const words = note ? note.textContent.trim().split(/\s+/) : [], lines = [];
+    for (const w of words) {
+      if (lines.length && (lines[lines.length - 1] + " " + w).length * 6.1 <= W) lines[lines.length - 1] += " " + w;
+      else lines.push(w);
+    }
+    lines.forEach((l, k) => parts.push(`<text x="${pad}" y="${bottom + 22 + 16 * k}" style="font:12px ${FONTS};fill:${ink2}">${esc(l)}</text>`));
+    const H = Math.ceil(bottom + 30 + (lines.length ? 10 + 16 * lines.length : 0));
+    parts.push(`<text x="${pad}" y="${H - 10}" style="font:11.5px ${FONTS};fill:${muted}">scorvec.com/verification.html · saved ${new Date().toISOString().slice(0, 10)}</text>`);
+    const width = W + 2 * pad;
+    return { svg: `<svg xmlns="${NS}" viewBox="0 0 ${width} ${H}" width="${width}" height="${H}"><rect width="100%" height="100%" fill="${bg}"/>${parts.join("")}</svg>`, W: width, H };
+  }
+  function toSvg(host, spec) {
+    download(new Blob([composed(host, spec).svg], { type: "image/svg+xml" }), slugOf(titleOf(host, spec)) + ".svg");
+  }
+  function toPng(host, spec) {
+    const c = composed(host, spec), img = new Image(), scale = 2;
+    img.onload = () => {
+      const cv = document.createElement("canvas");
+      cv.width = c.W * scale; cv.height = c.H * scale;
+      const g = cv.getContext("2d");
+      g.scale(scale, scale);
+      g.drawImage(img, 0, 0, c.W, c.H);
+      cv.toBlob(b => b && download(b, slugOf(titleOf(host, spec)) + ".png"), "image/png");
+    };
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(c.svg);
+  }
+  // every point as a row: the panel, the series, where along the axis, the value, its interval, and whether it is
+  // drawn filled (a passed test) where the chart draws that
+  function toCsv(host, spec) {
+    const q = v => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = [["panel", "series", "x", "value", "low", "high", "filled"]];
+    for (const p of spec.panels) {
+      const time = (p.u || {}).type === "time";
+      for (const s of p.series) for (const pt of s.pts) {
+        if (pt.v == null) continue;
+        rows.push([plain(p.title), s.name, time ? new Date(pt.u).toISOString().slice(0, 10) : pt.u, pt.v, pt.lo ?? "", pt.hi ?? "",
+          pt.on == null ? "" : pt.on ? "yes" : "no"]);
+      }
+    }
+    download(new Blob([rows.map(r => r.map(q).join(",")).join("\n") + "\n"], { type: "text/csv" }), slugOf(titleOf(host, spec)) + ".csv");
   }
 
   const state = new WeakMap();

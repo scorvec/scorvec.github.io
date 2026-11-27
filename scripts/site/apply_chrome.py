@@ -651,6 +651,7 @@ VERSIONED = (
     "wave-compass.js",
     "jet_xsec.js",
     "verification/vcharts.js",
+    "verification/vbuild.js",
 )
 _ASSET_REF = re.compile(r"""(["'])(/?assets/(""" + "|".join(map(re.escape, VERSIONED)) + r"""))(?:\?v=\w*)?\1""")
 

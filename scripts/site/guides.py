@@ -105,8 +105,8 @@ GUIDES = [
         desc="What each view of the model verification page shows and how it is made: every model in one table, the "
         "single runs' scorecards, error by lead, 500 hPa anomaly correlation, upper-air error maps against ERA5 and "
         "each model's analysis, station and bias maps, errors country by country and US rain scores, "
-        "the ensembles' CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and "
-        "the tests and intervals behind them.",
+        "the ensembles' CRPS, spread and reliability, weeks 1 to 5, a plot builder and the errors of a region you "
+        "draw, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.",
     ),
     dict(
         slug="enso-forecasts",
