@@ -280,8 +280,9 @@ def render_phase(doc: dict, lead_in: Path, out: Path) -> None:
     }
     for name, (px, py, ha, va) in spots.items():
         ax.text(
-            px, py, PC.PHASE_LABEL[name], ha=ha, va=va, fontsize=11, fontweight="bold", color=PH_COL[name], zorder=8
-        )
+            px, py, PC.PHASE_LABEL[name], ha=ha, va=va, fontsize=11, fontweight="bold", color=PH_COL[name], zorder=8,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.85, "pad": 1.5},
+        )  # fmt: skip
     lead = json.loads(lead_in.read_text()) if lead_in.exists() else {}
     if lead.get("basis_month") == row["month"] and pd.Timestamp(lead["init"][:10]) >= run:
         tr = np.array(lead["pc_mean"])
