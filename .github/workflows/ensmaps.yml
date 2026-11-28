@@ -64,6 +64,9 @@ on:
       follow:
         type: boolean
         default: false
+      clusters_only:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       model:
@@ -84,6 +87,10 @@ on:
         default: ""
       follow:
         description: "Follow the run as it lands (from its first day), publishing days 1-5 and 6-10 as they complete"
+        type: boolean
+        default: false
+      clusters_only:
+        description: "Only redraw the clusters of the newest start all four ensembles hold (model: any name not a model's, e.g. manual)"
         type: boolean
         default: false
 
@@ -109,6 +116,7 @@ env:
 
 jobs:
   run:
+    if: ${{ !inputs.clusters_only }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.follow && 240 || 110 }}
     outputs:
@@ -294,7 +302,7 @@ jobs:
 
   clusters:
     needs: run
-    if: needs.run.outputs.fields == '1'
+    if: ${{ !cancelled() && (inputs.clusters_only || needs.run.outputs.fields == '1') }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     concurrency:
@@ -319,7 +327,7 @@ jobs:
         id: start
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FORCE: ${{ inputs.force && '1' || '' }}
+          FORCE: ${{ (inputs.force || inputs.clusters_only) && '1' || '' }}
         run: |
           set -euo pipefail
           common="" first=1
