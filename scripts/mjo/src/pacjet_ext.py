@@ -16,6 +16,12 @@ NOAA publishes a 00Z run's days 16-35 about a day later, so the run is the previ
 
     python src/pacjet_ext.py --drift pacjet_rf_drift.npz --out-dir assets/sst [--date 20261127]
         -> assets/sst/data/pacjet_ext.json and assets/sst/pacjet_ext.webp (no figure when nothing passed)
+
+A week in which both jet indices passed also gets the phase diagram (assets/sst/pacjet_gefs_phase.webp): its members
+in the plane of the two indices, the share of them in each phase (pacjet_core.phase_of of the weekly means) against
+ERA5's share of 7-day means in that phase in the week's month and its neighbours (binomial test of the members' count,
+Benjamini-Hochberg at FDR_Q over the phases), and the AIFS-ENS mean's days 0-15 leading in where it is read on the
+same month's patterns.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy.ndimage import uniform_filter1d
 from scipy.stats import binomtest
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -46,6 +53,8 @@ from doycal import noleap_doy
 
 MEMBERS = ("gec00", *(f"gep{i:02d}" for i in range(1, J.LIVE)))
 FDR_Q = 0.10
+# the phases' colours of pacjet.py's diagram
+PH_COL = {"extension": "#c0392b", "poleward": "#2e86c1", "retraction": "#7d5ba6", "equatorward": "#d68910"}
 NAMES = {
     "pc1": ("Jet extension (+) or retraction (−)", "PC1, standard deviations"),
     "pc2": ("Jet shifted poleward (+) or equatorward (−)", "PC2, standard deviations"),
@@ -104,6 +113,28 @@ def summary(x: np.ndarray) -> dict:
     }
 
 
+def phase_odds(ref: xr.Dataset, pc1: list, pc2: list, month: int) -> dict:
+    """Per phase (and neutral): the members' share, ERA5's share of 7-day means in the month and its neighbours, and
+    whether the members' count differs from it."""
+    t = pd.DatetimeIndex(ref.time.values)
+    wk = uniform_filter1d(ref.pc.values.astype(float), 7, axis=0, mode="nearest")
+    near = np.isin(t.month, [(month - 2) % 12 + 1, month, month % 12 + 1])
+    clim = PC.phase_of(wk[near, 0], wk[near, 1])
+    mem = PC.phase_of(pc1, pc2)
+    out = {}
+    for k, name in (*enumerate(PC.PHASES), (-1, "neutral")):
+        c = float((clim == k).mean())
+        n = int((mem == k).sum())
+        out[name] = {
+            "share": round(n / mem.size, 3),
+            "normal": round(c, 3),
+            "p": float(binomtest(n, mem.size, c).pvalue),
+        }
+    for o, ok in zip(out.values(), R.bh([o["p"] for o in out.values()], FDR_Q), strict=True):
+        o["sig"], o["p"] = bool(ok), round(o["p"], 4)
+    return out
+
+
 def build(run: pd.Timestamp, drift: dict, skill: dict) -> dict:
     show = {k: v["show"] for k, v in skill["targets"].items()}
     doc = {
@@ -138,6 +169,8 @@ def build(run: pd.Timestamp, drift: dict, skill: dict) -> dict:
             for k, name in enumerate(("pc1", "pc2")):
                 if show[name] > w:
                     row["targets"][name] = summary(pcs[:, k])
+            if min(show["pc1"], show["pc2"]) > w:
+                row["phase"] = phase_odds(ref, pcs[:, 0], pcs[:, 1], month)
         if show["torque"] > w:
             clim = float(PC.harm_eval(drift["torque_clim"], noleap_doy(days)).mean())
             row["targets"]["torque"] = summary(tq[:, w] - dt_[w] - clim) | {
@@ -216,6 +249,103 @@ def render(doc: dict, skill: dict, out: Path) -> None:
     plt.close(fig)
 
 
+def render_phase(doc: dict, lead_in: Path, out: Path) -> None:
+    """The phase diagram of the weeks that carry both indices (the first of them drawn)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import house
+    import matplotlib.pyplot as plt
+
+    house.apply()
+    row = next(r for r in doc["weeks"] if "phase" in r)
+    x, y = (np.array(row["targets"][k]["members"]) for k in ("pc1", "pc2"))
+    run = pd.Timestamp(doc["init"][:10])
+    span = f"{pd.Timestamp(row['from']):%-d %b} – {pd.Timestamp(row['to']):%-d %b}"
+    fig = plt.figure(figsize=(12.6, 7.0))
+    ax = fig.add_axes([0.06, 0.12, 0.72 * 7.0 / 12.6, 0.72])
+    lim = float(np.clip(np.abs(np.r_[x, y]).max() + 0.5, 2.5, 4.5))
+    th = np.linspace(0, 2 * np.pi, 200)
+    ax.fill(np.cos(th), np.sin(th), color=house.GRID, zorder=0)
+    ax.plot(np.cos(th), np.sin(th), color=house.EDGE, lw=1)
+    for a in (45, 135):
+        r = np.array([1, lim * 1.5])
+        for sgn in (1, -1):
+            ax.plot(sgn * np.cos(np.radians(a)) * r, sgn * np.sin(np.radians(a)) * r, color=house.EDGE, lw=0.8)
+    spots = {
+        "extension": (lim * 0.97, 0, "right", "center"),
+        "poleward": (0, lim * 0.97, "center", "top"),
+        "retraction": (-lim * 0.97, 0, "left", "center"),
+        "equatorward": (0, -lim * 0.97, "center", "bottom"),
+    }
+    for name, (px, py, ha, va) in spots.items():
+        ax.text(
+            px, py, PC.PHASE_LABEL[name], ha=ha, va=va, fontsize=11, fontweight="bold", color=PH_COL[name], zorder=8
+        )
+    lead = json.loads(lead_in.read_text()) if lead_in.exists() else {}
+    if lead.get("basis_month") == row["month"] and pd.Timestamp(lead["init"][:10]) >= run:
+        tr = np.array(lead["pc_mean"])
+        ax.plot(tr[:, 0], tr[:, 1], color=house.MUTED, lw=1.4, zorder=3, label="AIFS-ENS mean, days 0–15 (daily)")
+        ax.scatter(tr[0, 0], tr[0, 1], s=26, color="white", edgecolor=house.MUTED, zorder=4)
+        ax.scatter(tr[-1, 0], tr[-1, 1], s=26, color=house.MUTED, zorder=4)
+    ax.scatter(
+        x,
+        y,
+        s=30,
+        color=house.ACCENT,
+        edgecolor="white",
+        lw=0.5,
+        zorder=5,
+        label=f"GEFS members, week {row['week']} mean",
+    )
+    ax.scatter(
+        x.mean(), y.mean(), s=190, marker="*", color=house.INK, edgecolor="white", lw=0.8, zorder=6, label="their mean"
+    )
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.set_xlabel("PC1: retraction (−) to extension (+), standard deviations")
+    ax.set_ylabel("PC2: equatorward (−) to poleward (+), standard deviations")
+    ax.legend(loc="lower left", fontsize=9, frameon=False)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    bx = fig.add_axes([0.60, 0.20, 0.36, 0.56])
+    names = [*PC.PHASES, "neutral"]
+    odds = row["phase"]
+    yy = np.arange(len(names))[::-1]
+    for yv, name in zip(yy, names, strict=True):
+        o = odds[name]
+        col = PH_COL.get(name, house.MUTED)
+        bx.barh(yv, o["share"], height=0.5, color=col if o["sig"] else house.EDGE, zorder=2)
+        bx.plot([o["normal"]] * 2, [yv - 0.36, yv + 0.36], color=house.INK, lw=1.6, zorder=3)
+        bx.text(
+            max(o["share"], o["normal"]) + 0.02, yv, f"{o['share']:.0%}", va="center", fontsize=10.5, color=house.INK
+        )
+    bx.set_yticks(yy)
+    bx.set_yticklabels([PC.PHASE_LABEL[n] for n in names])
+    bx.set_xlim(0, 1)
+    bx.xaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
+    bx.set_title(f"Share of members in each phase, {span}", loc="left", fontsize=11)
+    bx.grid(axis="x", color=house.GRID, lw=0.6)
+    bx.set_axisbelow(True)
+    for s in ("top", "right", "left"):
+        bx.spines[s].set_visible(False)
+    bx.tick_params(axis="y", length=0)
+    fig.text(
+        0.60, 0.085,
+        "Black line: the normal share (ERA5 7-day means, this time of year).\nColoured where the members' share differs "
+        "from it (10 % false discovery rate).",
+        fontsize=9, color=house.MUTED, va="top",
+    )  # fmt: skip
+    fig.suptitle(
+        f"North Pacific jet phase, week {row['week']} ({span}): GEFS, {doc['members']} members, run of {run:%-d %b %Y} 00 UTC",
+        x=0.03, ha="left", fontsize=14, fontweight="bold",
+    )  # fmt: skip
+    house.clear(fig, 110)
+    fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", help="the 00Z run, YYYYMMDD (default: yesterday's)")
@@ -229,6 +359,11 @@ def main() -> int:
     out = Path(a.out_dir)
     (out / "data").mkdir(parents=True, exist_ok=True)
     fig = out / "pacjet_ext.webp"
+    phase = out / "pacjet_gefs_phase.webp"
+    if any("phase" in row for row in doc["weeks"]):
+        render_phase(doc, out / "data" / "pacjet_aifs.json", phase)
+    else:
+        phase.unlink(missing_ok=True)
     if any(row["targets"] for row in doc["weeks"]):
         render(doc, skill, fig)
     else:
