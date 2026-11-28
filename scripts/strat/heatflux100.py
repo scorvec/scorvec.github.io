@@ -598,7 +598,7 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
             color=MUTED,
         )
     ax.set_title(
-        "Trailing 40-day mean flux, standardised (what the vortex responds to)",
+        "Trailing 40-day mean flux, standardised: the slow push the vortex's strength follows",
         loc="left",
         fontsize=11.5,
         fontweight="bold",
@@ -641,7 +641,7 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
         for y, txt, col in zip((0.058, 0.040, 0.022), lines, (INK, MUTED, MUTED)):
             fig.text(0.055, y, txt, fontsize=8.6, color=col, va="top")
     ax.set_title(
-        "SSW warning meter: the 10-day mean flux against the level that preceded the warmings on record",
+        "SSW warning meter: the 10-day mean flux, the burst that preceded the warmings on record (the 40-day mean gives no warning)",
         loc="left",
         fontsize=11.5,
         fontweight="bold",
