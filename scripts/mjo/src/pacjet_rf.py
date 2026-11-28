@@ -134,7 +134,8 @@ def reduce(jobs: list, fetch) -> tuple[np.ndarray, np.ndarray]:
                 if 24 * a <= hour <= 24 * z + 12:
                     (u if kind == "u" else ps)[w] += x
                     n[int(kind == "ps"), w] += 1
-    return u / n[0][:, None, None], ps / n[1][:, None, None]
+    with np.errstate(invalid="ignore", divide="ignore"):  # a week not asked for: NaN
+        return u / n[0][:, None, None], ps / n[1][:, None, None]
 
 
 def one_member(start: str, mem: str) -> tuple[np.ndarray, np.ndarray] | None:
