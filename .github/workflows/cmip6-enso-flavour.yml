@@ -121,7 +121,7 @@ jobs:
         run: pip install -r scripts/sst/requirements-sst.txt
       - name: This run's tables
         if: inputs.extract
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: djf-*
           path: fresh
