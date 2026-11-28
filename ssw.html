@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=0c5d1a63c9">
-<link rel="stylesheet" href="/assets/outlook.css?v=0730631eb4">
+<link rel="stylesheet" href="/assets/outlook.css?v=b84673c691">
 <style>
   /* ssw.html: the days 1-15 sudden-warming summary (scripts/strat/ssw_summary.py -> assets/sst/data/ssw_summary.json);
      page rules on top of /assets/outlook.css. */
@@ -29,7 +29,7 @@
   table.rec th, table.rec td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
   table.rec th:first-child, table.rec td:first-child { text-align: left; }
   table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
-  table.rec td small { display: block; font-size: 0.72rem; color: var(--muted); }
+  table.rec td small { display: block; font-size: 0.8rem; color: var(--muted); }
   .runs-h { margin: 0.6rem 1.4rem 0; font-weight: 600; font-size: 0.9rem; color: var(--ink); }
   @media (max-width: 600px) { .runs-h { margin: 0.6rem 0.6rem 0; } }
   .img-wrap img { max-height: 92vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
@@ -84,7 +84,7 @@
     table.rec.fit { width: 100%; table-layout: fixed; }
     table.rec.fit th, table.rec.fit td { white-space: normal; padding: 0.32rem 0.3rem; }
     table.rec.fit th { font-size: 0.78rem; }
-    table.rec.fit td small { font-size: 0.66rem; white-space: nowrap; }
+    table.rec.fit td small { font-size: 0.76rem; }
     table.rec.check td:first-child { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
     table.rec.check td:first-child small { display: block; }
   }
@@ -378,7 +378,7 @@
     drawClock.w = W;
     var placed = Object.keys(C.models).filter(function (m) { return C.models[m].wind != null; })
       .sort(function (a, b) { return C.models[a].wind - C.models[b].wind; });
-    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 11 : 12;
+    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 12.5 : 13;
     var xs = ev.map(function (e) { return e.wind; }).concat(placed.map(function (m) { return C.models[m].wind; }));
     var x0 = Math.floor(Math.min.apply(null, xs) * 2) / 2 - 0.2, x1 = Math.ceil(Math.max.apply(null, xs) * 2) / 2 + 0.2;
     var L = { l: 46, r: 10, t: 12 + 17 * placed.length, b: W < 560 ? 40 : 46 };

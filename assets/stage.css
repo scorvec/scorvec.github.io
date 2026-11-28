@@ -98,7 +98,7 @@ details.built > summary { font-size: 0.95rem; }
   /* a slimmer number band: every row of it is a row of the figure on the first screen */
   .ss-host > :is(.page-header, header) > .chips { margin-bottom: 0.6rem; }
   .chip { padding: 0.4rem 0.8rem 0.45rem; }
-  .chip .l { font-size: 0.7rem; }
+  .chip .l { font-size: 0.78rem; }
   .chip .v { font-size: 1.35rem; }
   .chip .s { font-size: 0.78rem; }
   .crumb { padding: 0.5rem 1.2rem; }
@@ -163,7 +163,7 @@ details.built > summary { font-size: 0.95rem; }
      where the page has one; the line of context under each value shows on wide screens */
   .ss-host > .chips, .ss-host > :is(.page-header, header) > .chips { --chip-min: 7rem; margin-bottom: 0.7rem; }
   .ss-host .chips .chip { padding: 0.4rem 0.5rem 0.45rem; }
-  .ss-host .chips .chip .l { font-size: 0.7rem; letter-spacing: 0.03em; }
+  .ss-host .chips .chip .l { font-size: 0.78rem; letter-spacing: 0.03em; }
   .ss-host .chips .chip .v { font-size: 1.15rem; }
   .ss-host .chips .chip .s { display: none; }
   .ss-host > .ss-layout { order: 2; margin: 0.2rem 0 1.2rem; }

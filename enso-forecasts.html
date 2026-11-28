@@ -213,8 +213,8 @@
     display: flex; justify-content: space-between; align-items: center;
     gap: 1rem; flex-wrap: wrap;
   }
-  .chart-sources { font-size: 0.68rem; color: var(--muted); }
-  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+  .chart-sources { font-size: 0.8rem; color: var(--muted); }
+  .chart-updated { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
   @media (max-width: 480px) { .chart-updated { white-space: normal; } }
 
   .colophon {
@@ -235,7 +235,7 @@
     display: flex; justify-content: center;
   }
   .counter {
-    font-size: 0.72rem; letter-spacing: 0.08em;
+    font-size: 0.8rem; letter-spacing: 0.08em;
     color: var(--muted); text-transform: uppercase;
   }
   .counter span { color: var(--ink); font-weight: 500; }
@@ -354,11 +354,11 @@
   .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
   .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
           padding: 0.55rem 0.85rem; min-width: 148px; }
-  .chip .l { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+  .chip .l { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em;
              text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   .chip .v { font-size: 1.28rem; font-weight: 600; margin-top: 2px;
              font-variant-numeric: tabular-nums; }
-  .chip .s { font-size: 0.66rem; color: var(--ink2); }
+  .chip .s { font-size: 0.8rem; color: var(--ink2); }
   .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
 
   /* the legacy plain `card` container — same box as .chart-card */
@@ -381,7 +381,7 @@
   .heromap { position: relative; }
   .heromap img { width: auto; max-width: 100%; max-height: 88vh; height: auto;
                  margin: 0 auto; display: block; cursor: zoom-in; }
-  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 0.64rem;
+  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 0.8rem;
                    color: var(--ink2); background: rgba(255,255,255,0.9);
                    border: 1px solid var(--rule); border-radius: 999px;
                    padding: 3px 9px; text-decoration: none; }
@@ -940,7 +940,7 @@ window.STAGE = {
       ]
     }
     </script>
-<link rel="stylesheet" href="/assets/stage.css?v=de5bbf8c90">
+<link rel="stylesheet" href="/assets/stage.css?v=31fdaf94f3">
 <script src="/assets/stage.js?v=0a9aae58c5" defer></script>
 
 <script>
@@ -1016,9 +1016,9 @@ window.STAGE = {
       font: { family: FONT, size: narrow() ? 12 : 13.5, color: INK2 },
       margin: { l: narrow() ? 40 : 52, r: narrow() ? 8 : 16, t: 8, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: "rgba(26,26,26,0.25)", tickcolor: MUTED, zeroline: false,
-               tickfont: { size: narrow() ? 11 : 12.5 } },
+               tickfont: { size: narrow() ? 12 : 12.5 } },
       yaxis: { gridcolor: GRID, linecolor: "rgba(26,26,26,0.25)", tickcolor: MUTED,
-               zerolinecolor: "rgba(26,26,26,0.45)", zerolinewidth: 1.5, tickfont: { size: narrow() ? 11 : 12.5 },
+               zerolinecolor: "rgba(26,26,26,0.45)", zerolinewidth: 1.5, tickfont: { size: narrow() ? 12 : 12.5 },
                title: { text: "°C", standoff: 6, font: { size: 12.5 } } },
       legend: legendPos(),
       hovermode: "x unified",
@@ -1030,7 +1030,7 @@ window.STAGE = {
   }
   function legendPos() {
     return narrow()
-      ? { orientation: "h", x: 0, xanchor: "left", y: -0.16, yanchor: "top", font: { size: 11.5 }, traceorder: "normal",
+      ? { orientation: "h", x: 0, xanchor: "left", y: -0.16, yanchor: "top", font: { size: 12 }, traceorder: "normal",
           entrywidth: 0.5, entrywidthmode: "fraction" }
       : { orientation: "h", x: 0, xanchor: "left", y: 1.02, yanchor: "bottom", font: { size: 12.5 }, traceorder: "normal" };
   }
@@ -1423,14 +1423,14 @@ window.STAGE = {
     ];
     var ann = [["Niño-4", 185], ["Niño-3", 240], ["1+2", 275]].map(function (a) {
       return { x: a[1], y: 1, xref: "x", yref: "paper", yanchor: "bottom", text: a[0], showarrow: false,
-               font: { size: narrow() ? 10.5 : 12, color: MUTED } };
+               font: { size: 12, color: MUTED } };
     });
     var lay = layout({ shapes: shapes, annotations: ann, hovermode: "x unified" });
     lay.margin.t = 22;
     lay.xaxis = Object.assign(lay.xaxis, lonTicks(140, 280, narrow() ? 40 : 20), { range: [140, 280] });
     lay.yaxis.title.text = "anomaly (°C)";
     lay.yaxis.range = [Math.min(-1, Math.min.apply(null, fc.p10.filter(fin)) - 0.3), ymax + 0.5];
-    lay.legend = narrow() ? { orientation: "h", x: 0, y: -0.16, yanchor: "top", font: { size: 11.5 } } : { orientation: "v", x: 0.01, xanchor: "left", y: 0.98, yanchor: "top",
+    lay.legend = narrow() ? { orientation: "h", x: 0, y: -0.16, yanchor: "top", font: { size: 12 } } : { orientation: "v", x: 0.01, xanchor: "left", y: 0.98, yanchor: "top",
                                              bgcolor: "rgba(255,255,255,0.85)", font: { size: 12 } };
     el("eqChart").style.height = (narrow() ? 380 : 330) + "px";
     Plotly.react("eqChart", tr, lay, CONFIG);
