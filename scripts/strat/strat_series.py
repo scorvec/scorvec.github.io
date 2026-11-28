@@ -345,6 +345,8 @@ def main() -> int:
         corrected = bias_at(base, 24, kind, lev, north) is not None
         pkey = f"{kind}{lev}"
         panels_out[pkey] = (ft, M)
+        if pkey == "u6010":
+            u10_normal = fc_clim  # each lead's normal: the weeks' anomalies in the extended SSW index
         col, row = pi % NCOL, pi // NCOL
         ax = fig.add_axes([L0 + col * PW + 0.042, T0 - (row + 1) * PH + 0.070, PW * 0.895, PH * 0.735])
         if (kind, lev) == ("u60", 10):
@@ -450,7 +452,7 @@ def main() -> int:
         import json
 
         ft, M = panels_out["u6010"]
-        idx = {"model": "GEPS", "init": f"{base:%Y-%m-%dT%H}Z", **VM.weekly_index(ft, M, north, base)}
+        idx = {"model": "GEPS", "init": f"{base:%Y-%m-%dT%H}Z", **VM.weekly_index(ft, M, north, base, u10_normal)}
         (OUT / "ssw35_geps.json").write_text(json.dumps(idx))
         print(f"  ssw35_geps.json: {idx['weeks'][-1]['by_end'] if idx['weeks'] else 0} of {idx['members']} reverse")
     p = OUT / f"strat_{a.hemi}_series.webp"

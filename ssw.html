@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SSW outlook &mdash; Shawn Corvec</title>
-<meta name="description" content="Is a sudden stratospheric warming coming in the next 15 days, what kind, and will it reach the surface? One summary of four ensembles, updated every run.">
+<meta name="description" content="Is a sudden stratospheric warming coming in the next 15 days, what kind, and will it reach the surface? Four ensembles to day 15, and GEFS and GEPS for weeks 3 to 5, updated every run.">
 <link rel="canonical" href="https://scorvec.com/ssw.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Sudden stratospheric warming outlook">
-<meta property="og:description" content="Is a sudden stratospheric warming coming in the next 15 days, what kind, and will it reach the surface? One summary of four ensembles, updated every run.">
+<meta property="og:description" content="Is a sudden stratospheric warming coming in the next 15 days, what kind, and will it reach the surface? Four ensembles to day 15, and GEFS and GEPS for weeks 3 to 5, updated every run.">
 <meta property="og:url" content="https://scorvec.com/ssw.html">
 <meta property="og:image" content="https://scorvec.com/assets/sst/nh_vortex.webp">
 <meta name="twitter:card" content="summary_large_image">
@@ -25,17 +25,19 @@
   .chart-stack a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
   .chart-card-header p { max-width: 110ch; }
   .tblwrap { overflow-x: auto; padding: 0 1.4rem 0.6rem; }
-  table.rec { border-collapse: collapse; font-size: 0.84rem; margin: 0.4rem 0 0.6rem; font-variant-numeric: tabular-nums; }
+  .page-header .sub { font-size: 1.08rem; }
+  .chart-card-header p { font-size: 1rem; line-height: 1.6; }
+  table.rec { border-collapse: collapse; font-size: 0.95rem; margin: 0.4rem 0 0.6rem; font-variant-numeric: tabular-nums; }
   table.rec th, table.rec td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
   table.rec th:first-child, table.rec td:first-child { text-align: left; }
   table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
-  table.rec td small { display: block; font-size: 0.8rem; color: var(--muted); }
-  .runs-h { margin: 0.6rem 1.4rem 0; font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+  table.rec td small { display: block; font-size: 0.86rem; color: var(--muted); }
+  .runs-h { margin: 0.6rem 1.4rem 0; font-weight: 600; font-size: 1rem; color: var(--ink); }
   @media (max-width: 600px) { .runs-h { margin: 0.6rem 0.6rem 0; } }
   .img-wrap img { max-height: 92vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
   .img-wrap a { border: 0; }
   .disc { padding: 0.9rem 1.4rem 0.4rem; }
-  .disc p { font-size: 0.9rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
+  .disc p { font-size: 1rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
   .disc b { color: var(--ink); font-weight: 600; }
   @media (max-width: 600px) { .chips .chip .v { font-size: 1.2rem; } .tblwrap { padding: 0 0.6rem 0.6rem; } }
   /* a share of members is shaded by its size (heat() below): pale for a few, deep red for most; text inside a shaded
@@ -47,7 +49,7 @@
   table.rec .ck { font-weight: 700; margin-right: 0.2em; }
   table.rec .ck.no { color: var(--muted); }
   /* the coupling clock (#clock): the past warmings and each ensemble on one chart, drawn from the summary as SVG */
-  .clock-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0.1rem 1.4rem 0; font-size: 0.84rem; color: var(--ink2); }
+  .clock-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0.1rem 1.4rem 0; font-size: 0.95rem; color: var(--ink2); }
   .clock-key span { display: inline-flex; align-items: center; gap: 0.45rem; }
   .clock-key i { display: inline-block; width: 18px; border-top: 2.5px solid; }
   .clock-key i.dot { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #4a4744; }
@@ -64,10 +66,25 @@
   .clock-fig .dot { fill: #4a4744; stroke: #fff; stroke-width: 1.5; outline: none; }
   .clock-fig .dot:focus-visible { stroke: var(--ink); stroke-width: 2.5; }
   .clock-tip { position: absolute; z-index: 2; pointer-events: none; background: #fff; border: 1px solid var(--rule);
-               border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.8rem; line-height: 1.45; color: var(--ink);
+               border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.9rem; line-height: 1.45; color: var(--ink);
                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); max-width: 270px; }
-  .clock-note { margin: 0.1rem 0 0.5rem; padding: 0 1.4rem; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
-  @media (max-width: 600px) { .clock-key, .clock-fig, .clock-note { padding-left: 0.6rem; padding-right: 0.6rem; } }
+  /* weeks 3-5 (#weeks35): every member's week, the 100 hPa heat flux and the 10 hPa wind, as dots */
+  .clock-fig .mem { fill: #6f87a6; stroke: #fff; stroke-width: 1; outline: none; }
+  .clock-fig .mem.hi { fill: #c0392b; }
+  .clock-fig .mem:focus-visible { stroke: var(--ink); stroke-width: 2; }
+  .clock-fig .zero { stroke: #b9b3a6; stroke-width: 1.2; }
+  .clock-fig .ref { stroke: #c0392b; stroke-width: 1.3; stroke-dasharray: 5 3; }
+  .clock-fig .ref2 { stroke: #8a8478; stroke-width: 1.2; stroke-dasharray: 3 3; }
+  .clock-fig .ttl { fill: var(--ink); font-weight: 600; }
+  .clock-key i.mem { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #6f87a6; }
+  .clock-key i.mem.hi { background: #c0392b; }
+  .clock-key i.ref { width: 22px; border-top: 2px dashed #c0392b; }
+  .clock-key i.ref2 { width: 22px; border-top: 2px dashed #8a8478; }
+  table.rec#t_ext { width: 100%; }
+  table.rec#t_ext th:not(:first-child), table.rec#t_ext td:not(:first-child) { text-align: left; white-space: normal; width: 30%; }
+  .w35-more { margin: 0.2rem 0 0.9rem; padding: 0 1.4rem; font-size: 0.95rem; color: var(--ink2); }
+  .clock-note { margin: 0.1rem 0 0.5rem; padding: 0 1.4rem; font-size: 0.9rem; line-height: 1.5; color: var(--muted); }
+  @media (max-width: 600px) { .clock-key, .clock-fig, .clock-note, .w35-more { padding-left: 0.6rem; padding-right: 0.6rem; } }
   /* phones: no sideways scrolling - a model's row becomes a card of label: value lines, and the run-by-run grid shrinks
      to the screen with its headers wrapped */
   @media (max-width: 700px) {
@@ -83,8 +100,10 @@
     table.rec.cards td:first-child small { display: inline; }
     table.rec.fit { width: 100%; table-layout: fixed; }
     table.rec.fit th, table.rec.fit td { white-space: normal; padding: 0.32rem 0.3rem; }
-    table.rec.fit th { font-size: 0.78rem; }
-    table.rec.fit td small { font-size: 0.76rem; }
+    table.rec.fit th { font-size: 0.82rem; }
+    table.rec.fit td small { font-size: 0.8rem; }
+    table.rec#t_ext td:not(:first-child) { display: block; width: auto; }
+    table.rec#t_ext td:not(:first-child)::before { display: block; font-size: 0.86rem; margin-bottom: 0.1rem; }
     table.rec.check td:first-child { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
     table.rec.check td:first-child small { display: block; }
   }
@@ -260,7 +279,7 @@
 
 <main id="main">
   <div class="page-header">
-    <p class="eyebrow">Days 1&ndash;15, four ensembles: AIFS-ENS, IFS-ENS, GEFS and GEPS</p>
+    <p class="eyebrow">Days 1&ndash;15 from AIFS-ENS, IFS-ENS, GEFS and GEPS; weeks 3&ndash;5 from GEFS and GEPS</p>
     <h1>Sudden stratospheric warming outlook</h1>
     <p class="sub" id="lede">&ndash;</p>
     <div class="chips">
@@ -284,10 +303,12 @@
     </section>
 
     <section class="chart-card" id="weeks35" hidden>
-      <div class="chart-card-header"><h2>Weeks 3&ndash;5</h2>
+      <div class="chart-card-header"><h2>Weeks 3&ndash;5 outlook</h2>
         <p data-k="ext_line">&ndash;</p></div>
+      <div class="clock-key" id="w35_key"></div>
+      <div class="clock-fig" id="w35_fig"><div class="clock-tip" id="w35_tip" hidden></div></div>
       <div class="tblwrap"><table class="rec" id="t_ext"></table></div>
-      <div class="img-wrap"><a href="/stratosphere.html#vortex35/geps"><img src="/assets/geps/strat_nh_series.webp" alt="GEPS u at 60N at 10 hPa, every member, and at 100 hPa with the polar-cap temperature and height, days 1-35" loading="lazy"></a></div>
+      <p class="w35-more">Every member day by day: <a href="/stratosphere.html#vortex35/gefs">GEFS</a> &middot; <a href="/stratosphere.html#vortex35/geps">GEPS</a> &middot; <a href="/stratosphere.html#heatflux35">heat flux</a></p>
     </section>
 
     <section class="chart-card" id="checklist" hidden>
@@ -378,7 +399,7 @@
     drawClock.w = W;
     var placed = Object.keys(C.models).filter(function (m) { return C.models[m].wind != null; })
       .sort(function (a, b) { return C.models[a].wind - C.models[b].wind; });
-    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 12.5 : 13;
+    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 13 : 14;
     var xs = ev.map(function (e) { return e.wind; }).concat(placed.map(function (m) { return C.models[m].wind; }));
     var x0 = Math.floor(Math.min.apply(null, xs) * 2) / 2 - 0.2, x1 = Math.ceil(Math.max.apply(null, xs) * 2) / 2 + 0.2;
     var L = { l: 46, r: 10, t: 12 + 17 * placed.length, b: W < 560 ? 40 : 46 };
@@ -448,6 +469,87 @@
     });
     if (!drawClock.ro && window.ResizeObserver) { drawClock.ro = new ResizeObserver(function () { drawClock(C, N); }); drawClock.ro.observe(box); }
   }
+  // weeks 3-5: one panel per quantity (the 100 hPa heat flux, the 10 hPa wind), the three weeks across, each with a
+  // column of dots per ensemble; a dot past the panel's line (a large pulse, a weak-vortex week) is red. Side by side
+  // on a wide card, stacked on a phone; redrawn when the card changes width
+  function drawWeeks(E, N, em) {
+    var box = document.getElementById("w35_fig"), tip = document.getElementById("w35_tip");
+    var cs = getComputedStyle(box), W = Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    if (W < 200 || W === drawWeeks.w) return;
+    drawWeeks.w = W;
+    var P = E.pulse || {}, fs = W < 560 ? 13 : 14, r = W < 560 ? 3.4 : 4;
+    var panels = [];
+    if (em.some(function (m) { return E.models[m].flux_z; })) panels.push({ key: "flux_z", title: "100 hPa heat flux, week mean (sd from normal)",
+      hi: function (x) { return P.passes && x >= P.threshold; }, line: function () { return P.passes ? P.threshold : null; }, ref2: function () { return E.flux_rule.passes ? E.flux_rule.threshold : null; },
+      unit: " sd", what: "heat flux", lo: -1.5, up: 2 });
+    if (em.some(function (m) { return E.models[m].anom; })) panels.push({ key: "anom", title: "10 hPa wind at 60°N, week mean (m/s from normal)",
+      hi: function (x, v, i) { return v.weak_thr && x <= v.weak_thr[i]; }, line: function (v, i) { return v.weak_thr ? v.weak_thr[i] : null; }, ref2: function () { return null; },
+      unit: " m/s", what: "wind", lo: -15, up: 10 });
+    var key = document.getElementById("w35_key"), k = '<span><i class="mem"></i>a member’s week</span>';
+    if (panels[0] && panels[0].key === "flux_z" && P.passes) k += '<span><i class="mem hi"></i><i class="ref"></i>large heat-flux pulse (+' + P.threshold + " sd)</span>";
+    if (E.flux_rule.passes && panels[0] && panels[0].key === "flux_z") k += '<span><i class="ref2"></i>heat-flux week (+' + E.flux_rule.threshold + " sd)</span>";
+    if (panels.some(function (q) { return q.key === "anom"; })) k += '<span><i class="mem hi"></i>weak-vortex week (lowest third)</span>';
+    key.innerHTML = k;
+    var side = panels.length > 1 && W >= 760, PW = side ? (W - 28) / 2 : W, PH = W < 560 ? 250 : 290;
+    var H = side || panels.length === 1 ? PH : 2 * PH + 18;
+    var s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Every GEFS and GEPS member’s weekly 100 hPa heat flux and 10 hPa wind, weeks 3 to 5" style="font-size:' + fs + 'px">';
+    function tx(x, y, t, cls, anchor) { return '<text class="' + cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + (anchor || "start") + '">' + t + "</text>"; }
+    function ln(a, b, c, d, cls) { return '<line class="' + cls + '" x1="' + a.toFixed(1) + '" y1="' + b.toFixed(1) + '" x2="' + c.toFixed(1) + '" y2="' + d.toFixed(1) + '"/>'; }
+    var dots = [];
+    panels.forEach(function (q, pi) {
+      var ox = side ? pi * (PW + 28) : 0, oy = side ? 0 : pi * (PH + 18), L = { l: 42, r: 6, t: fs + 12, b: 2 * fs + 16 };
+      var vals = [];
+      em.forEach(function (m) { (E.models[m][q.key] || []).forEach(function (w) { (w || []).forEach(function (x) { vals.push(x); }); }); });
+      var y0 = Math.min(q.lo, Math.floor(Math.min.apply(null, vals))), y1 = Math.max(q.up, Math.ceil(Math.max.apply(null, vals)));
+      function Y(v) { return oy + L.t + (y1 - v) / (y1 - y0) * (PH - L.t - L.b); }
+      var gx0 = ox + L.l, gw = (PW - L.l - L.r) / E.weeks.length;
+      s += tx(ox + 2, oy + fs + 2, q.title, "ttl");
+      var step = q.key === "anom" ? 5 : 1;
+      for (var v = Math.ceil(y0 / step) * step; v <= y1 + 1e-9; v += step) s += ln(gx0, Y(v), ox + PW - L.r, Y(v), v === 0 ? "zero" : "grid") + tx(gx0 - 6, Y(v) + 4, v === 0 ? "0" : sg(v, 0), "ax", "end");
+      E.weeks.forEach(function (w, i) {
+        var a = gx0 + i * gw, cw = gw / em.length;
+        s += tx(a + gw / 2, oy + PH - 4, "days " + w[0] + "–" + w[1], "ax", "middle");
+        if (i) s += ln(a, oy + L.t, a, Y(y0), "grid");
+        var r2 = q.ref2(), r2y = r2 != null ? Y(r2) : null;
+        em.forEach(function (m, c) {
+          var V = E.models[m], arr = (V[q.key] || [])[i];
+          var cx = a + cw * (c + 0.5), lv = q.line(V, i);
+          s += tx(cx, oy + PH - fs - 8, N[m], "ax", "middle");
+          if (r2y != null) s += ln(cx - cw * 0.42, r2y, cx + cw * 0.42, r2y, "ref2");
+          if (lv != null) s += ln(cx - cw * 0.42, Y(lv), cx + cw * 0.42, Y(lv), "ref");
+          if (!arr) return;
+          // a simple beeswarm: each dot takes the nearest free slot sideways from the column's centre
+          var placed = [], d = 2 * r + 0.6;
+          arr.map(function (x, k) { return [x, k]; }).sort(function (p1, p2) { return p1[0] - p2[0]; }).forEach(function (pr) {
+            var y = Y(pr[0]), dx = 0;
+            for (var t = 0; t < 40; t++) {
+              dx = (t % 2 ? 1 : -1) * Math.ceil(t / 2) * d * 0.9;
+              if (Math.abs(dx) > cw * 0.45) { dx = 0; break; }
+              if (!placed.some(function (o) { return Math.hypot(o[0] - (cx + dx), o[1] - y) < d; })) break;
+            }
+            placed.push([cx + dx, y]);
+            var hi = q.hi(pr[0], V, i);
+            s += '<circle class="mem' + (hi ? " hi" : "") + '" tabindex="0" data-w="' + dots.length + '" cx="' + (cx + dx).toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r + '"/>';
+            dots.push("<b>" + N[m] + "</b> member " + (pr[1] + 1) + ", days " + w[0] + "–" + w[1] + "<br>" + q.what + " " + sg(pr[0], 1) + q.unit + (hi ? (q.key === "anom" ? "<br>a weak-vortex week" : "<br>a large pulse") : ""));
+          });
+        });
+      });
+    });
+    var old = box.querySelector("svg");
+    if (old) old.remove();
+    box.insertAdjacentHTML("afterbegin", s + "</svg>");
+    box.querySelectorAll("[data-w]").forEach(function (el) {
+      function show() {
+        tip.innerHTML = dots[+el.getAttribute("data-w")]; tip.hidden = false;
+        var b = el.getBoundingClientRect(), o = box.getBoundingClientRect(), left = b.left - o.left + 12;
+        if (left + tip.offsetWidth > o.width) left = b.left - o.left - tip.offsetWidth - 6;
+        tip.style.left = Math.max(0, left) + "px"; tip.style.top = Math.max(0, b.top - o.top - tip.offsetHeight / 2) + "px";
+      }
+      el.addEventListener("mouseenter", show); el.addEventListener("focus", show);
+      el.addEventListener("mouseleave", function () { tip.hidden = true; }); el.addEventListener("blur", function () { tip.hidden = true; });
+    });
+    if (!drawWeeks.ro && window.ResizeObserver) { drawWeeks.ro = new ResizeObserver(function () { drawWeeks(E, N, em); }); drawWeeks.ro.observe(box); }
+  }
   fetch("assets/sst/data/ssw_summary.json", { cache: "no-cache" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (j) {
     var N = j.names, S = j.ssw, W = j.waves, D = j.descent, R = j.reflect, F = j.surface, X = j.reference;
     var ens = ["aifs", "ifs", "gefs", "geps"];
@@ -480,27 +582,61 @@
     table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
       last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));
 
-    // weeks 3-5 (GEPS, GEFS to day 35): members whose 10 hPa wind first turns easterly each week, members with a
-    // heat-flux week (the checklist's flux rule over 7 days), and the MERRA-2 base rate for the same calendar days
-    var E = j.extended, em = E ? ["geps", "gefs"].filter(function (m) { return E.models[m]; }) : [];
+    // weeks 3-5 (GEFS, GEPS to day 35): each member's week, the 100 hPa heat flux and the 10 hPa wind, as dots; the table
+    // has the lean (GEFS, where its reforecast has skill), the members past each line and GEFS's calibrated chances
+    var E = j.extended, em = E ? ["gefs", "geps"].filter(function (m) { return E.models[m]; }) : [];
     if (em.length && j.ssw_season) {
       document.getElementById("weeks35").hidden = false;
-      var e0 = E.models[em[0]], tot = function (m) { return E.models[m].first.reduce(function (a, b) { return a + (b || 0); }, 0); };
-      var heatOn = E.flux_rule.passes && em.some(function (m) { return E.models[m].heat; });
-      set("ext_line", "Days " + E.weeks[0][0] + "–" + E.weeks[E.weeks.length - 1][1] + " (" + md(e0.window[0]) + "–" + md(e0.window[1])
-        + "): the wind at 60°N, 10\u00A0hPa first turns easterly in " + em.map(function (m) { return tot(m) + " of " + E.models[m].members + " " + N[m] + " members"; }).join(" and ")
-        + ". Since 1980, " + e0.base_rate.with_onset + " of " + e0.base_rate.winters + " winters had a sudden warming begin in these days.");
-      table("t_ext", ["model", "members"].concat(E.weeks.map(function (w) { return "days " + w[0] + "–" + w[1]; })),
-        em.map(function (m) {
-          var v = E.models[m];
-          return [who(N[m], v.init), v.members].concat(v.first.map(function (n, i) {
-            var c = v.heat_chance && v.heat_chance[i];  // GEFS, where the reforecast's calibrated chance has skill
-            var h = heatOn && v.heat && v.heat[i] != null ? "<small>" + v.heat[i] + " with a heat-flux week"
-              + (c != null ? ": " + pct(c) + " chance (normal " + pct(v.heat_normal) + ")" : "") + "</small>" : "";
-            var short = n != null && v.ends && v.ends[i] < E.weeks[i][1] ? " to day " + v.ends[i] : "";  // GEFS ends on day 34
-            return { h: (n == null ? "–" : n + " easterly" + short) + h, v: n == null ? null : n / v.members };
-          }));
-        }));
+      var e0 = E.models[em[0]], P = E.pulse || {};
+      var sum = function (a) { return a.reduce(function (x, y) { return x + (y || 0); }, 0); };
+      var anyLarge = function (v) {  // members with a large pulse in at least one week
+        if (!v.flux_z || !P.passes) return null;
+        var n = 0; for (var i = 0; i < v.flux_z[0].length; i++) if (v.flux_z.some(function (w) { return w && w[i] >= P.threshold; })) n++;
+        return n;
+      };
+      var lean = em.filter(function (m) { return E.models[m].lean && E.models[m].lean.some(function (x) { return x; }); });
+      var lw = lean.map(function (m) {
+        var v = E.models[m], wk = E.weeks.filter(function (w, i) { return v.lean[i]; }).map(function (w) { return w[0] + "–" + w[1]; });
+        return N[m] + "’s 10 hPa wind " + (v.lean[v.lean.findIndex(function (x) { return x; })] < 0 ? "weaker" : "stronger") + " than normal in days " + wk.join(", ");
+      });
+      var big = em.filter(function (m) { return anyLarge(E.models[m]) != null; });
+      set("ext_line", "Days " + E.weeks[0][0] + "–" + E.weeks[E.weeks.length - 1][1] + " (" + md(e0.window[0]) + "–" + md(e0.window[1]) + "). "
+        + (lw.length ? lw.join("; ") + ". " : "")
+        + (big.length ? "A large heat-flux pulse in " + big.map(function (m) { return anyLarge(E.models[m]) + " of " + E.models[m].heat_members + " " + N[m]; }).join(" and ") + " members. " : "")
+        + "The wind turns easterly in " + em.map(function (m) { return sum(E.models[m].first) + " " + N[m]; }).join(" and ") + " members; since 1980, "
+        + e0.base_rate.with_onset + " of " + e0.base_rate.winters + " winters had a sudden warming begin in these days.");
+      var rows = [];
+      em.forEach(function (m) {
+        var v = E.models[m];
+        if (!v.anom) return;
+        rows.push([who("10 hPa wind, " + N[m], v.init)].concat(E.weeks.map(function (w, i) {
+          var l = v.lean && v.lean[i], c = v.weak_chance && v.weak_chance[i];
+          var below = v.anom[i].filter(function (x) { return x < 0; }).length;  // an untested model gets the count, not a lean
+          var h = !v.tested ? below + " of " + v.members + " below normal" : l ? (l < 0 ? "weaker" : "stronger") + " than normal (" + sg(v.anom_mean[i], 0) + " m/s)" : "no clear lean";
+          var wk = v.weak ? "<small>" + v.weak[i] + " of " + v.members + " in a weak-vortex week" + (c != null ? ": " + pct(c) + " chance (normal " + pct(v.weak_normal) + ")" : "") + "</small>" : "";
+          return { h: h + wk, v: v.weak ? (c != null ? c : v.weak[i] / v.members) : null };
+        })));
+      });
+      em.forEach(function (m) {
+        var v = E.models[m];
+        if (!v.flux_z) return;
+        rows.push([who("100 hPa heat flux, " + N[m], v.heat_init)].concat(E.weeks.map(function (w, i) {
+          if (!v.flux_z[i]) return "–";
+          var lg = v.large && v.large[i], c = v.large_chance && v.large_chance[i], hw = v.heat && v.heat[i];
+          var h = (lg != null ? lg + " of " + v.heat_members + " with a large pulse" : "–")
+            + "<small>" + (hw != null ? hw + " with a heat-flux week" : "") + (c != null ? "; large-pulse chance " + pct(c) + " (normal " + pct(v.large_normal) + ")" : "") + "</small>";
+          return { h: h, v: lg != null ? (c != null ? c : lg / v.heat_members) : null };
+        })));
+      });
+      em.forEach(function (m) {
+        var v = E.models[m];
+        rows.push([who("Turns easterly, " + N[m], v.init)].concat(v.first.map(function (n, i) {
+          var short = n != null && v.ends && v.ends[i] < E.weeks[i][1] ? " (to day " + v.ends[i] + ")" : "";  // GEFS ends on day 34
+          return { h: n == null ? "–" : n + " of " + v.members + short, v: n == null ? null : n / v.members };
+        })));
+      });
+      table("t_ext", [""].concat(E.weeks.map(function (w) { return "days " + w[0] + "–" + w[1]; })), rows);
+      drawWeeks(E, N, em);
     }
 
     // the checklist: what most past warmings had over the 15 days before their onset, each ensemble over the same days

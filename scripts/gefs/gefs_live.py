@@ -742,7 +742,7 @@ def vortex_series(z, C2, base, hemi, prev, tail, out: Path, Dr=None):
             )
             ax.axhline(0, color="k", lw=1.6)
         if kind == "u60" and lev == 10 and north:
-            idx = {"model": "GEFS", "init": f"{base:%Y-%m-%d}T00Z", **VM.weekly_index(t, corr.T, north, base)}
+            idx = {"model": "GEFS", "init": f"{base:%Y-%m-%d}T00Z", **VM.weekly_index(t, corr.T, north, base, normal)}
             (out / "ssw35_gefs.json").write_text(json.dumps(idx))  # the extended SSW index (ssw_summary.py)
             n_rev = idx["weeks"][-1]["by_end"] if idx["weeks"] else 0
             # beside the panel title, where the legend cannot cover it (inside the axes the legend hid it)

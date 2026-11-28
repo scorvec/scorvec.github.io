@@ -61,6 +61,11 @@ checklist, the coupling clock and the warming under way:
            counts, with how often a MERRA-2 sudden warming began in the same calendar days; for GEFS also the chance of
            a heat-flux week from its share of members, by the GEFSv12 reforecast's logistic fit, in the weeks where
            that calibrated chance has significant skill there (EXT_SKILL, ssw35_skill.py). Reversals stay counts.
+           Large pulses: the members whose weekly flux reaches the skill file's large-pulse level (about the top tenth
+           of November-March weeks), shown while its ERA5 test before past warmings passes; GEFS's calibrated chance
+           where that has skill. The vortex: every member's weekly mean 10 hPa wind anomaly (the figures' corrected
+           members less the normal), the members' sign test, a lean only for GEFS in weeks whose reforecast weekly mean
+           has significant skill, and the members in a weak-vortex week (the lowest third for the time of year).
 """
 
 from __future__ import annotations
@@ -81,6 +86,9 @@ sys.path.insert(0, str(HERE.parent / "lib"))
 import build_ssw_checklist as CK
 import vortex_members as VM
 import heatflux100 as HF
+
+sys.path.insert(0, str(HERE.parent / "mjo" / "src"))
+from doycal import noleap_doy
 import reflection_index as RX
 import run_record as RR
 from build_drip_ref import Ref
@@ -178,12 +186,20 @@ def base_rate(init: pd.Timestamp, first: int = 1, last: int = WINDOW) -> dict:
 
 
 def extended_part(clim, now: pd.Timestamp) -> dict:
-    """Weeks 3-5 of GEPS and GEFS: first reversals and heat-flux weeks per week, member counts (see WEEKS 3-5)."""
+    """Weeks 3-5 of GEPS and GEFS: first reversals, the 10 hPa wind and the 100 hPa heat flux per week, member by member
+    (see WEEKS 3-5)."""
     weeks = [w for w in VM.WEEKS if w[0] >= EXT_FIRST]
     fl = json.loads(CK.OUT.read_text())["items"]["flux"]
     test = fl["by_days"].get(str(EXT_WEEK))
     rule = {"threshold": fl["threshold"], "days": EXT_WEEK, **(test or {}),
             "passes": bool(test and test["p"] < CK.ALPHA)}  # fmt: skip
+    try:
+        sk = json.loads(EXT_SKILL.read_text())
+    except (OSError, ValueError):
+        sk = {}
+    hs, vs = sk.get("heat_flux", {}), sk.get("vortex", {})
+    pulse = {"threshold": hs.get("large_sd"), **hs.get("pulse", {})}
+    pulse["passes"] = bool(pulse.get("passes"))
     out = {}
     for m in EXTENDED:
         try:
@@ -194,9 +210,10 @@ def extended_part(clim, now: pd.Timestamp) -> dict:
         if now - init > pd.Timedelta(days=EXT_AGE):
             continue
         by = {w["days"][0]: w for w in rv["weeks"]}  # a model's last week can end a day short (GEFS: day 34)
+        n = rv["members"]
         row = {
             "init": f"{init:%Y-%m-%d %HZ}",
-            "members": rv["members"],
+            "members": n,
             "first": [by[a]["first"] if a in by else None for a, _ in weeks],
             "ends": [by[a]["days"][1] if a in by else None for a, _ in weeks],
             "base_rate": base_rate(init, EXT_FIRST, weeks[-1][1]),
@@ -205,37 +222,82 @@ def extended_part(clim, now: pd.Timestamp) -> dict:
                 f"{init + pd.Timedelta(days=weeks[-1][1]):%Y-%m-%d}",
             ],
         }
+        if all(a in by and "anom" in by[a] for a, _ in weeks):
+            row.update(vortex_weeks(by, weeks, init, n, vs, m in EXT_CHANCE))
         hf = _read_asset(m, f"data/{m}_heatflux100.json")
-        if rule["passes"] and hf:
+        if hf:
             v = pd.DatetimeIndex([x[:10] for x in hf["valid"]])
             mem = np.array(hf["hemispheres"]["nh"]["tot"]["members"], float)  # member x day 1..35
             z = (mem - HF.clim_at(clim, "nh", "tot", "mean", v)) / HF.clim_at(clim, "nh", "tot", "sd", v)
-            h0 = pd.Timestamp(hf["init"])
-            row["heat"] = [int((np.nanmean(z[:, a - 1 : b], 1) >= rule["threshold"]).sum()) if z.shape[1] >= b else None
-                           for a, b in weeks]  # fmt: skip
-            row["heat_init"], row["heat_members"] = f"{h0:%Y-%m-%d %HZ}", int(mem.shape[0])
-            if m in EXT_CHANCE:
-                row["heat_chance"], row["heat_normal"] = heat_chance(row["heat"], int(mem.shape[0]), weeks)
+            wz = [np.nanmean(z[:, a - 1 : b], 1) if z.shape[1] >= b else None for a, b in weeks]
+            h0, k = pd.Timestamp(hf["init"]), int(mem.shape[0])
+            row["heat_init"], row["heat_members"] = f"{h0:%Y-%m-%d %HZ}", k
+            row["flux_z"] = [None if x is None else [_r(float(y)) for y in x] for x in wz]
+            if rule["passes"]:
+                row["heat"] = [None if x is None else int((x >= rule["threshold"]).sum()) for x in wz]
+                if m in EXT_CHANCE:
+                    row["heat_chance"], row["heat_normal"] = calibrated(hs, "raw", row["heat"], k, weeks)
+            if pulse["passes"]:
+                row["large"] = [None if x is None else int((x >= pulse["threshold"]).sum()) for x in wz]
+                if m in EXT_CHANCE:
+                    row["large_chance"], row["large_normal"] = calibrated(hs, "large", row["large"], k, weeks)
         out[m] = row
-    return {"weeks": [list(w) for w in weeks], "models": out, "flux_rule": rule}
+    return {"weeks": [list(w) for w in weeks], "models": out, "flux_rule": rule, "pulse": pulse,
+            "weak_quantile": vs.get("weak_quantile")}  # fmt: skip
 
 
-def heat_chance(counts: list, members: int, weeks: list) -> tuple[list, float | None]:
-    """The chance of a heat-flux week from the share of members with one, by the reforecast's logistic fit, for the weeks
-    whose calibrated chance has significant skill there (None elsewhere); and the reforecast's rate of heat-flux weeks."""
-    try:
-        sk = json.loads(EXT_SKILL.read_text())["heat_flux"]["weeks"]
-    except (OSError, ValueError, KeyError):
-        return [None] * len(weeks), None
+def vortex_weeks(by: dict, weeks: list, init: pd.Timestamp, n: int, vs: dict, tested: bool) -> dict:
+    """The week's mean 10 hPa wind anomaly of every member, their mean with a sign test (a lean where the members agree
+    and, for a reforecast-tested model, the reforecast's weekly mean has significant skill), and the members with a
+    weak-vortex week (the reforecast's MERRA-2 threshold for the week's middle day), with the calibrated chance of one
+    where that has skill."""
+    from scipy import stats
+
+    thr = vs.get("threshold")
+    out = {"tested": tested, "anom": [], "anom_mean": [], "anom_p": [], "lean": [], "weak": [], "weak_thr": []}
+    for a, _b in weeks:
+        x = np.array(by[a]["anom"], float)
+        lo, hi = int((x < 0).sum()), int((x > 0).sum())
+        p = float(stats.binomtest(lo, lo + hi, 0.5).pvalue) if lo + hi else 1.0
+        w = _skill_week(vs, a)
+        lean = 0
+        if tested and w and w.get("passes") and p < CK.ALPHA:
+            lean = -1 if lo > hi else 1
+        out["anom"].append([_r(float(y), 1) for y in x])
+        out["anom_mean"].append(_r(float(x.mean()), 1))
+        out["anom_p"].append(float(f"{p:.3g}"))
+        out["lean"].append(lean)
+        if thr:
+            mid = init + pd.Timedelta(days=(a + by[a]["days"][1]) / 2)
+            t = float(thr[int(np.floor(noleap_doy(np.array([mid.to_datetime64()]))[0])) - 1])
+            out["weak_thr"].append(_r(t, 1))
+            out["weak"].append(int((x <= t).sum()))
+    if not thr:
+        del out["weak"], out["weak_thr"]
+    elif tested:
+        out["weak_chance"], out["weak_normal"] = calibrated(vs, "weak", out["weak"], n, weeks)
+    return out
+
+
+def _skill_week(part: dict, a: int):
+    return next((v for k, v in part.get("weeks", {}).items() if k.startswith(f"{a}-")), None)
+
+
+def calibrated(part: dict, key: str, counts: list, members: int, weeks: list) -> tuple[list, float | None]:
+    """The chance of an event from the share of members with it, by the reforecast's logistic fit (`key` of the skill
+    file's week), for the weeks whose calibrated chance has significant skill (None elsewhere); and the reforecast's
+    rate of the event."""
     out, rate = [], None
     for (a, _b), n in zip(weeks, counts):
-        w = next((v for k, v in sk.items() if k.startswith(f"{a}-")), None)
-        fit = w and w.get("chance") and w["raw"]["recalibrated"].get("fit")
+        w = _skill_week(part, a)
+        r = w and w.get(key)
+        flag = r and (r.get("chance") if key == "large" else w.get("chance"))  # the week's flag for raw and weak
+        fit = flag and r["recalibrated"].get("fit")
         if not fit or n is None:
             out.append(None)
             continue
         out.append(_r(1 / (1 + np.exp(-(fit[0] + fit[1] * n / members)))))
-        rate = _r(w["raw"]["events"] / w["raw"]["starts"])
+        rate = _r(r["events"] / r["starts"])
     return out, rate
 
 

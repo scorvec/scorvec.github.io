@@ -45,10 +45,11 @@ def draw_members(ax, times, M, north: bool) -> None:
         ax.plot([], [], color=EASTERLY, lw=1.2, label=f"members turning easterly ({int(rev.sum())})")
 
 
-def weekly_index(times, M, north: bool, start) -> dict:
+def weekly_index(times, M, north: bool, start, normal=None) -> dict:
     """Members whose first winter reversal falls in each forecast week, and how many have reversed by its end.
     start: the forecast's start (a date or datetime); day d = the valid day d days after it. A week the series
-    ends one day short of (GEFS's daily means stop at day 34) is kept, with the day it ends on."""
+    ends one day short of (GEFS's daily means stop at day 34) is kept, with the day it ends on. normal (lead,): the
+    wind's normal on each valid time; given, each week also carries every member's mean anomaly over its days."""
     M = np.asarray(M, float)
     fr = first_reversal(times, M, north)
     day0 = start.date() if hasattr(start, "date") else start
@@ -59,11 +60,14 @@ def weekly_index(times, M, north: bool, start) -> dict:
         end = min(b, int(day_of.max()))
         if end < b - 1:
             break
-        weeks.append(
-            {
-                "days": [a, end],
-                "first": int(((first_day >= a) & (first_day <= end)).sum()),
-                "by_end": int((first_day <= end).sum()),
-            }
-        )
+        wk = {
+            "days": [a, end],
+            "first": int(((first_day >= a) & (first_day <= end)).sum()),
+            "by_end": int((first_day <= end).sum()),
+        }
+        if normal is not None:
+            sel = (day_of >= a) & (day_of <= end)
+            anom = (M[sel] - np.asarray(normal, float)[sel][:, None]).mean(0)
+            wk["anom"] = [round(float(x), 1) for x in anom]
+        weeks.append(wk)
     return {"members": int(M.shape[1]), "weeks": weeks}
