@@ -11,7 +11,9 @@
    u (the independent axis): { type: "linear" | "log" | "logit" | "time", domain, ticks: [number | { u, label }], fmt, label }
    v (the value axis): { domain, floor, ceil, fmt, label }
    series: [{ name, color, shape, note, line, markers, pts: [{ u, v, lo, hi, on }] }]; a null v breaks the line,
-   lo and hi draw a whisker (whiskers: false keeps them for the tooltip alone), on === false leaves the marker hollow.
+   lo and hi draw the interval (whiskers: false keeps them for the tooltip alone): a shaded band along a line of
+   BAND_FROM points or more, where whiskers side by side would bristle, else a whisker a point (band: true or false
+   chooses); a key line's word "whiskers" follows what the chart draws. on === false leaves the marker hollow.
    refs: [{ v, label, soft }] a line across the panel at a value (soft: drawn only where the values reach it), its
    label at the end of the line with the least drawn under it; [{ diag: true }] the line v = u.
    v.floor and v.ceil stop the padding of the value axis at a bound.
@@ -23,7 +25,10 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const r1 = v => Math.round(v * 10) / 10;
   const TRANS = { linear: v => v, time: v => v, log: Math.log10, logit: p => Math.log(p / (1 - p)) };
+  const BAND_FROM = 8, R = 3.7, R_HOLLOW = 2.9;   // points before intervals are shaded; the markers' radii
   let serial = 0;
+  // whether a panel shades its intervals: asked for, or a line long enough that whiskers would crowd
+  const banded = p => p.whiskers !== false && (p.band ?? p.series.some(s => s.pts.filter(q => q.v != null && q.lo != null && q.hi != null).length >= BAND_FROM));
 
   // tick values at 1, 2, 2.5 or 5 times a power of ten
   function nice(lo, hi, n) {
@@ -63,7 +68,7 @@
     return `M${r1(x - r)},${r1(y)}a${r},${r} 0 1,0 ${2 * r},0a${r},${r} 0 1,0 ${-2 * r},0z`;
   }
   const dot = (s, on, r) => (on === false
-    ? `<path d="${marker(s.shape, 0, 0, r)}" style="fill:var(--panel);stroke:${s.color};stroke-width:1.8"/>`
+    ? `<path d="${marker(s.shape, 0, 0, r * (R_HOLLOW / R))}" style="fill:var(--panel);stroke:${s.color};stroke-width:1.5"/>`
     : `<path d="${marker(s.shape, 0, 0, r)}" style="fill:${s.color};stroke:var(--panel);stroke-width:1"/>`);
   // a marker as a small inline picture, for legends and tooltips
   const swatch = (s, on) => `<svg class="vsw" viewBox="-8 -8 16 16" aria-hidden="true"><path d="M-8,0H8" stroke="${s.color}" stroke-width="2"/>${dot(s, on, 4.5)}</svg>`;
@@ -74,7 +79,7 @@
     if (p.title) wrap.append(el("div", "vtitle", p.title));
     const series = p.series.filter(s => s.pts.some(q => q.v != null));
     if (!series.length) { wrap.append(el("p", "vnone", "Nothing scored for this choice yet.")); return wrap; }
-    const H = p.height || H0, whiskers = p.whiskers !== false;
+    const H = p.height || H0, whiskers = p.whiskers !== false, band = banded(p);
 
     // the value axis: every value, and each interval as far as 60 % of the values' own range beyond them
     const vals = [], ends = [];
@@ -118,7 +123,7 @@
     // side-by-side offsets so whiskers never sit on each other, no wider than the gap between values allows
     let gap = Infinity;
     for (let i = 1; i < us.length; i++) gap = Math.min(gap, Math.abs(upx(us[i]) - upx(us[i - 1])));
-    const dodge = p.dodge ? Math.min(p.dodge, gap / (series.length + 0.5)) : 0;
+    const dodge = p.dodge && !band && ends.length ? Math.min(p.dodge, gap / (series.length + 0.5)) : 0;   // only whiskers need the room
     const off = i => (i - (series.length - 1) / 2) * dodge;
     const pos = (i, x, y) => { const [px, py] = at(x, y); return flip ? [px, py + off(i)] : [px + off(i), py]; };
 
@@ -150,11 +155,16 @@
     g.push(`<path class="vaxis" d="${flip ? `M${left},${top}V${top + ph}` : `M${left},${top + ph}H${left + pw}`}"/>`);
     const axisLabel = flip ? v.label : u.label;
     if (axisLabel) g.push(`<text class="vlab" x="${left + pw / 2}" y="${H - 5}" text-anchor="middle">${esc(axisLabel)}</text>`);
-    // whiskers under lines under markers; `ink` samples where the lines run, for placing the reference labels
-    const marks = [], lines = [], whisk = [], ink = [];
+    // intervals under lines under markers; `ink` samples where the lines run, for placing the reference labels
+    const marks = [], lines = [], whisk = [], bands = [], ink = [];
     series.forEach((s, i) => {
-      let d = "", pen = null;
+      let d = "", pen = null, edge = [];
+      const shade = () => {   // the band of a run of points with intervals: out along the high side, back along the low
+        if (edge.length > 1) bands.push(`<path d="M${[...edge.map(e => e[0]), ...edge.map(e => e[1]).reverse()].join("L")}z" fill="${s.color}"/>`);
+        edge = [];
+      };
       for (const q of s.pts) {
+        if (band && (q.v == null || q.lo == null || q.hi == null)) shade();
         if (q.v == null) { pen = null; continue; }
         const [x, y] = pos(i, q.u, q.v);
         d += (pen ? "L" : "M") + r1(x) + "," + r1(y);
@@ -163,10 +173,12 @@
         pen = [x, y];
         if (whiskers && q.lo != null && q.hi != null) {
           const [x0, y0] = pos(i, q.u, q.lo), [x1, y1] = pos(i, q.u, q.hi);
-          whisk.push(`<path d="M${r1(x0)},${r1(y0)}L${r1(x1)},${r1(y1)}" stroke="${s.color}"/>`);
+          if (band) edge.push([`${r1(x1)},${r1(y1)}`, `${r1(x0)},${r1(y0)}`]);
+          else whisk.push(`<path d="M${r1(x0)},${r1(y0)}L${r1(x1)},${r1(y1)}" stroke="${s.color}"/>`);
         }
-        if (s.markers !== false && p.markers !== false) marks.push(`<g transform="translate(${r1(x)},${r1(y)})">${dot(s, q.on, 4.5)}</g>`);
+        if (s.markers !== false && p.markers !== false) marks.push(`<g transform="translate(${r1(x)},${r1(y)})">${dot(s, q.on, R)}</g>`);
       }
+      shade();
       if (s.line !== false) lines.push(`<path d="${d}" stroke="${s.color}"${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>`);
     });
     // reference lines under the data, each label over it at the end of the line with the least drawn under it
@@ -192,7 +204,7 @@
         reft.push(`<text class="vreft" x="${r1(best.x)}" y="${r1(best.y)}" text-anchor="${best.anchor}">${esc(r.label)}</text>`);
       }
     }
-    g.push(`<g class="vwhisk" clip-path="url(#${id})">${whisk.join("")}</g><g class="vline" clip-path="url(#${id})">${lines.join("")}</g><g>${marks.join("")}</g>${reft.join("")}`);
+    g.push(`<g class="vband" clip-path="url(#${id})">${bands.join("")}</g><g class="vwhisk" clip-path="url(#${id})">${whisk.join("")}</g><g class="vline" clip-path="url(#${id})">${lines.join("")}</g><g>${marks.join("")}</g>${reft.join("")}`);
     // the names at the line ends, pushed apart where they would collide
     if (withEnds) {
       const tags = series.map((s, i) => {
@@ -227,7 +239,7 @@
         const q = s.pts.find(t => t.u === x && t.v != null);
         if (!q) return;
         const [px, py] = pos(i, x, q.v);
-        rings.push(`<circle cx="${r1(px)}" cy="${r1(py)}" r="7.5"/>`);
+        rings.push(`<circle cx="${r1(px)}" cy="${r1(py)}" r="6.5"/>`);
         rows.push(`<tr><td>${swatch(s, q.on)}${esc(s.name)}</td><td>${esc(tfmt(q.v))}</td><td>${q.lo != null && q.hi != null ? esc(tfmt(q.lo)) + " to " + esc(tfmt(q.hi)) : ""}</td></tr>`);
       });
       hover.innerHTML = `<path class="vguide" d="${flip ? `M${left},${c}H${left + pw}` : `M${c},${top}V${top + ph}`}"/>${rings.join("")}`;
@@ -273,7 +285,10 @@
     host.textContent = "";
     if (spec.legend || spec.keys) {
       const items = (spec.legend || []).map(s => `<span>${swatch(s, true)}${esc(s.name)}${s.note ? ` <b>${esc(s.note)}</b>` : ""}</span>`);
-      const keys = (spec.keys || []).map(k => `<span class="vkey">${k}</span>`);
+      const some = spec.panels.some(banded), all = spec.panels.every(p => banded(p) || p.whiskers === false);
+      const drawn = some ? (all ? "shading" : "shading or whiskers") : "whiskers";   // what the intervals are drawn as
+      spec.keys = (spec.keys || []).map(k => k.replace(/(shading or whiskers|shading|whiskers)(?=: \d+%)/, drawn));
+      const keys = spec.keys.map(k => `<span class="vkey">${k}</span>`);
       host.append(el("div", "vlegend", items.join("") + keys.join("")));
     }
     const tip = el("div", "vtip");
@@ -310,7 +325,7 @@
 
   // ── saving: one SVG of the legend, the panels and a source line, with the page's styles written into it, so that
   // it reads the same out of the page; a PNG of it at twice the size; the points as a long CSV table
-  const STYLE = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linejoin", "stroke-linecap", "opacity",
+  const STYLE = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linejoin", "stroke-linecap", "opacity", "fill-opacity",
     "font-size", "font-weight", "paint-order", "text-anchor"];
   const FONTS = "'Source Sans 3', 'Helvetica Neue', Arial, sans-serif";
   const plain = html => { const d = document.createElement("div"); d.innerHTML = html || ""; return d.textContent.replace(/\s+/g, " ").trim(); };

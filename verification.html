@@ -65,6 +65,7 @@
   .vref { stroke: var(--ink2); stroke-width: 1.2; stroke-dasharray: 5 4; fill: none; }
   .vline path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .vwhisk path { stroke-width: 1.3; opacity: 0.5; }
+  .vband path { fill-opacity: 0.12; stroke: none; }
   .vguide { stroke: var(--ink2); stroke-width: 1; }
   .vhover circle { fill: none; stroke: var(--ink); stroke-width: 1.5; }
   .vlegend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: center; font-size: 0.88rem; color: var(--ink2); margin: 0 0 0.3rem; }
@@ -267,7 +268,7 @@ window.plotly = function () {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/verification/vcharts.js?v=1e9b2b50f8"></script>
+<script src="/assets/verification/vcharts.js?v=1d06576046"></script>
 <script src="/assets/verification/vbuild.js?v=b6fce17093" defer></script>
 <script src="/assets/frames_root.js?v=37e1429f1f"></script>
 <script src="/assets/site.js?v=de9fd94074" defer></script>
@@ -1709,7 +1710,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         if (none) return null;
         const ms = ordered([...new Set(Object.values(rank).flatMap(Object.keys))]);
         const top = Math.max(0.1, ...Object.values(rank).flatMap(by => Object.values(by).flatMap(r => r.hi)));   // one scale across the panels
-        const panels = Object.entries(rank).map(([g, by]) => ({ title: title(g), dodge: 4, v: { domain: [0, Math.ceil(top * 20) / 20] }, refs: [{ v: 0.1, label: "flat" }],
+        const panels = Object.entries(rank).map(([g, by]) => ({ title: title(g), dodge: 4, band: false, v: { domain: [0, Math.ceil(top * 20) / 20] }, refs: [{ v: 0.1, label: "flat" }],
           u: { ticks: days(10), domain: [1, 10], label: "Tenth of the members' ranks, lowest to highest" }, tipHead: x => `Tenth ${x}`,
           series: ms.filter(m => by[m]).map(m => ({ ...who(m), pts: by[m].f.map((v, i) => ({ u: i + 1, v, lo: by[m].lo[i], hi: by[m].hi[i] })) })) }));
         return { panels, height: 290, legend: ms.map(who), keys: [CI], data: false };
@@ -1726,7 +1727,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         const ms = ordered([...new Set(Object.values(groups).flatMap(Object.keys))]), share = p => `${Math.round(100 * p)}%`;
         const cut = bhCut(Object.values(groups).flatMap(by => Object.values(by).map(x => x.bss_p)));
         const skill = x => x.bss != null && x.bss_p != null && x.bss_p <= cut ? x.bss.toFixed(2) : "–";
-        const panels = Object.entries(groups).map(([g, by]) => ({ dodge: 3, v: { domain: [0, 1], fmt: share }, refs: [{ diag: true }],
+        const panels = Object.entries(groups).map(([g, by]) => ({ dodge: 3, band: false, v: { domain: [0, 1], fmt: share }, refs: [{ diag: true }],
           title: `${title(g)}<small>Brier skill score: ${ms.filter(m => by[m]).map(m => `${esc(m)} ${skill(by[m])}`).join(", ")}</small>`,
           u: { domain: [0, 1], ticks: [0, 0.2, 0.4, 0.6, 0.8, 1], fmt: share, label: "Forecast probability" }, tipHead: p => `Forecast ${share(p)}`,
           tipFmt: share, series: ms.filter(m => by[m]).map(m => ({ ...who(m), pts: by[m].p.map((p, i) => ({ u: p, v: by[m].o[i] ?? null, lo: by[m].lo[i] ?? null, hi: by[m].hi[i] ?? null })) })) }));
