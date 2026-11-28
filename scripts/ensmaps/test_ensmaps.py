@@ -422,6 +422,11 @@ def clusters():
         check(info["robust"] == want and (not want or 0.35 < half < 0.65),
               f"main difference {'found' if want else 'absent'}: p {info['p']}, {info['explained']:.0%} of the spread, "
               f"sides {half:.2f}/{1 - half:.2f}")  # fmt: skip
+    # two models whose fields differ by 0.3 climatological sd everywhere, and a third between them
+    cosw = np.sqrt(np.cos(np.deg2rad(EC.LAT)))[:, None] * np.ones((1, EC.LON.size))
+    X = np.concatenate([np.tile(cosw.ravel(), 2)[None] * c for c in (0.0, 0.0, 0.15, 0.3, 0.3)])
+    gap = EC.model_gap(X, np.ones(5), np.array([0, 0, 1, 2, 2]), 3, "nh")
+    check(abs(gap - 0.3) < 1e-9, f"the widest gap between two models' means, in climatological sd: {gap:.3f}")
 
 
 def super_ens():

@@ -1812,7 +1812,10 @@
       " for an ensemble of the same spread with no groups (the 95th percentile of 100 synthetic ensembles)";
     var rule = "A split is shown when it beats that, every group holds at least " + pct(rules.min_weight) + " of the members, and resampling the members repeats it at least " + pct(rules.stable) + " of the time.";
     if (k === "dif") t.push("The members split by the ensembles they come from" + (pat ? ", along their main difference" : ", into " + R.models.k + " groups") +
-      ": a permutation test of ensemble against group gives p " + R.models.p + ", so the split is the models' own differences, not the weather's.");
+      ": a permutation test of ensemble against group gives p " + R.models.p + (R.models.gap != null ? ", and two ensembles' means are " + R.models.gap + " climatological standard deviations apart over the region" : "") +
+      ", so the split is the models' own differences, not the weather's.");
+    else if (R.close) t.push("The members group by the ensemble they come from (p " + R.close.p + "), but the ensembles' means are at most " + R.close.gap +
+      " climatological standard deviations apart over the region, under the " + R.close.min + " that counts as a disagreement: one scenario.");
     else if (k === "split") t.push("The " + R.k + " scenarios cut the members' spread by " + pct(ev.reduction[R.k - 1]) + ", against " + pct(ev.null_p95[R.k - 1]) +
       " for an ensemble of the same spread with no groups; resampling the members gives the same number " + pct(ev.stability) + " of the time, and the scenarios do not follow the ensembles (p " + R.independence + "). " + rule);
     else t.push(two + (ev.stability != null ? "; resampling the members repeats it " + pct(ev.stability) + " of the time" : "") + ". " + rule + " " +

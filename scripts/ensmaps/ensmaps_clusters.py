@@ -37,7 +37,9 @@ runs of the start given (--cycle: the workflow passes the newest start all four 
             from day to day; letters that follow a scenario through the windows and through the days (chain_letters); a
             permutation chi-square test of model x cluster independence: a split that fails it at 5 % follows the
             models, not the weather, and is shown as no scenario but each model's mean (on the drift-corrected fields
-            once the drift is removed); polar stereographic Northern Hemisphere maps per cluster, turned to face the
+            once the drift is removed) - where two models' means are GAP_MIN climatological sd apart or more over the
+            domain (model_gap); closer than that the members group by model without the models being far apart, the
+            test alone finding any offset among 150 members, and the period is one scenario; polar stereographic Northern Hemisphere maps per cluster, turned to face the
             domain (FACING), 500 hPa height and sea-level pressure, the anomaly (or the standardized anomaly:
             ensmaps_ref.Spread of the window's length) shaded where at least sign_k(n) of its n members agree on its
             sign, dots where its mean differs from the grand ensemble's (N_PERM random member sets of its size,
@@ -92,6 +94,7 @@ N_NULL_EOF = 1000  # its Gaussian ensembles: cheap (an SVD each), and enough tha
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
 P_MODELS = 0.05  # a split whose model x cluster test is below this follows the models: no scenarios
+GAP_MIN = 0.4  # ... and the models disagree only where two of their means are this far apart (climatological sd, RMS)
 DRIFT_MIN, DRIFT_K, DRIFT_KEEP, DRIFT_DAYS = 10, 10.0, 60, 15
 MODEL_ORDER = ("ifs", "aifs", "gefs", "geps")
 LABEL = {"ifs": "IFS-ENS", "aifs": "AIFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
@@ -458,12 +461,23 @@ def periods(models: list[dict]) -> list[dict]:
     return out
 
 
+def model_gap(X: np.ndarray, w: np.ndarray, mi: np.ndarray, nm: int, dk: str) -> float:
+    """The widest gap between two models' mean fields: the RMS over the domain's two fields of their difference, in
+    climatological sd (X: vectors, whose columns carry sqrt(cos lat))."""
+    _, la, _ = domains()[dk]
+    cos = np.cos(np.deg2rad(LAT[la]))
+    area = 2 * cos.sum() * (X.shape[1] // 2 // cos.size)  # the squared weights of both fields
+    mu = [(w[mi == i, None] * X[mi == i]).sum(0) / w[mi == i].sum() for i in range(nm)]
+    return float(max(np.sqrt(((a - b) ** 2).sum() / area) for a, b in itertools.combinations(mu, 2)))
+
+
 def solve(job: dict) -> dict:
     """One period's clusters in each domain (a worker process): {domain: k, the labels (the largest cluster 0), the
     evidence, the independence test, the main difference where no scenarios pass (`pattern`; its two sides are the
     groups when it is robust), and per group its weight, mean, sign agreement and difference from the grand ensemble's
     mean}. A split that follows the models (the independence test at 5 %) is no scenario: one group (k 1) whose panels
-    are the models' own means, and `models` gives the test's p and the groups found."""
+    are the models' own means, and `models` gives the test's p, the groups found and the models' widest gap
+    (model_gap); with a gap under GAP_MIN it is one scenario of all the members, and `close` gives the same."""
     import ensmaps as E
 
     z, m, w, mi, dates, nm = (job[k] for k in ("z", "m", "w", "mi", "dates", "nm"))
@@ -479,7 +493,11 @@ def solve(job: dict) -> dict:
             if pat["robust"] and min(w[side == j].sum() for j in (0, 1)) >= MIN_W * w.sum():
                 k, lab = 2, order(side, w, 2)
         p_ind = independence(mi, lab, k, nm, rng)
-        models = {"p": p_ind, "k": k} if p_ind is not None and p_ind < P_MODELS else None
+        models = close = None
+        if p_ind is not None and p_ind < P_MODELS:
+            models = {"p": p_ind, "k": k, "gap": round(model_gap(X, w, mi, nm, dk), 2)}
+            if models["gap"] < GAP_MIN:  # grouped by model, but the models are not far apart: one scenario
+                close, models, k, lab, pat = models | {"min": GAP_MIN}, None, 1, np.zeros_like(lab), None
         groups = [mi == i for i in range(nm)] if models else [lab == j for j in range(k)]
         cl = []
         for sel in groups:
@@ -502,7 +520,7 @@ def solve(job: dict) -> dict:
         if models:
             k, lab = 1, np.zeros_like(lab)
         out[dk] = {"k": k, "lab": lab, "ev": ev, "eofs": int(Y.shape[1]), "share": share, "p_ind": p_ind,
-                   "models": models, "cl": cl, "pattern": pat}  # fmt: skip
+                   "models": models, "close": close, "cl": cl, "pattern": pat}  # fmt: skip
     return out
 
 
@@ -653,12 +671,16 @@ def run(
                    "independence": sol["p_ind"], "clusters": cl, "members": len(P["w"])}  # fmt: skip
             if sol["models"]:
                 res["models"] = sol["models"]
+            if sol["close"]:
+                res["close"] = sol["close"]
             if "from" in sol:
                 res["from_previous"] = sol["from"]
             if sol["pattern"]:
                 res["pattern"] = sol["pattern"]
             result[P["key"]][dk] = res
-            what = (f"the split (k = {sol['models']['k']}) follows the models, p {sol['models']['p']}" if sol["models"]
+            near = sol["models"] or sol["close"]
+            what = (f"the split (k = {near['k']}) follows the models, p {near['p']}, gap {near['gap']} sd"
+                    + (": one scenario" if sol["close"] else "") if near
                     else f"k = {k} {''.join(x or '-' for x in sol['letters'])}")  # fmt: skip
             pat = sol["pattern"]
             log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), {what} "
@@ -697,6 +719,7 @@ def run(
             "var_keep": VAR_KEEP,
             "fdr_q": FDR_Q,
             "p_eof": P_EOF,
+            "gap_min": GAP_MIN,
         },
         "seconds": {"fit": round(t_fit - t_start), "all": round(t_end - t_start)},
     }

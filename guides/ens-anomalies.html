@@ -467,8 +467,11 @@ clusters;</li>
 <li>every cluster holds at least 5&nbsp;% of the weight;</li>
 <li>resampling the members gives the same number of clusters at least 60&nbsp;% of the time;</li>
 <li>the split is not just the models differing from each other: a permutation test of ensemble against cluster
-(2,000 permutations) must pass at 5&nbsp;%. Where it fails the page says the ensembles differ and shows each
-ensemble's own mean (&ldquo;Disagree&rdquo; in the strip of periods).</li>
+(2,000 permutations) must pass at 5&nbsp;%. Where it fails and two ensembles' means are at least 0.4
+climatological standard deviation apart over the region (the root-mean-square of their difference, both fields), the
+page says the ensembles differ and shows each ensemble's own mean (&ldquo;Disagree&rdquo; in the strip of periods).
+With 150 members the test alone finds offsets too small to matter, so where the means are closer than that the period
+is one scenario.</li>
 </ul>
 <p><b>Two ways.</b> Most often the members form one spread and no split passes. The page then shows that spread's main
 difference when one pattern clearly leads it: the mean of the members on each side of the four-ensemble mean along
