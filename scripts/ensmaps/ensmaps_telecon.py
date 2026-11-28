@@ -2,7 +2,7 @@
 """Teleconnections, days 1-15, for circulation.html#telecon15: the twelve teleconnection indices (telecon15.IDS: the AO
 from sea-level pressure, eleven from 500 hPa height) of every member of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each model's ensemble mean calibrated against its
 own archived runs, and the chance of each index's positive and negative phase at the leads where that model has
-demonstrated skill. An index CPC does not define in any of the forecast's months gets a figure saying so. No
+enough archived runs to be calibrated. An index CPC does not define in any of the forecast's months gets a figure saying so. No
 download: each ensmaps job leaves its members' fields in the Actions cache (Capture, from ensmaps.py), and `run` reads
 the newest run of each model there.
 
@@ -22,14 +22,14 @@ the newest run of each model there.
                (gefs_telecon.py, telecon_geps.fit) on daily starts and single days. A 12Z run takes the 00Z runs' fit
                at the same lead in hours.
   skill        a lead is skilful only when r >= SKILL_MIN, p <= P_MAX and it passes Benjamini-Hochberg at FDR_Q over
-               every model x index x lead of the update; elsewhere the figures hatch it, no demonstrated skill, and
-               give no probability
+               every model x index x lead of the update: the skill figure's colour. With MASK the other figures
+               hatch the leads that fail, no demonstrated skill, and give them no probability (off for now)
   probability  P(index >= +THR) and P(index <= -THR) from the regression's predictive Student t (cal_cdf: n_eff - 2
-               degrees of freedom, s widened for the fit's own uncertainty), at the skilful leads
-  blend        per index, the most models whose past runs can be tested leave-one-season-out at every lead (subset), from
-               their newest common start in the run records: equal or skill weights per lead, chosen out of sample (the
-               paired CRPS test; blend_fit), calibrated as a model is and gated on its cross-validated correlation in
-               the same false-discovery family (DelSole 2007 on why equal weights are hard to beat)
+               degrees of freedom, s widened for the fit's own uncertainty), at the leads with a fit
+  blend        per index, every model with a run on record, from their newest common start: at each lead the models'
+               predictive distributions mixed with equal weights (DelSole 2007 on why equal weights are hard to beat),
+               a model's its calibrated Student t, or where it has too few archived runs for a fit its members' own
+               mean and spread (blend, mixture)
   observed     ERA5's index at 00Z of the last TAIL_DAYS days, from the same table (ERA5T, about a week behind)
   record       each run's indices, kept as the runs arrive in one record per model (RECORD, the KEEP_DAYS newest days of
                runs; scripts/strat/run_record.py's layout: per index the members' mean and 10th/90th percentiles at each
@@ -64,6 +64,7 @@ SHORT = {"nao": "NAO", "ao": "AO", "pna": "PNA", "epo": "EPO", "wpo": "WPO", "ea
 COLORS = {"ifs": "#b3372f", "aifs": "#7b4fb0", "gefs": "#2c5f8a", "geps": "#2e7d4f"}  # verification.html's centres
 WINDOW = 45  # days of the year either side of the run's: the hindcast starts its calibration pools
 MIN_RUNS = 30
+MASK = False  # hatch the leads without demonstrated skill and give them no probability
 SKILL_MIN = 0.25  # hindcast correlation below this = no demonstrated skill
 P_MAX = 0.05  # ... and so is a correlation not significant at this level (one-sided, on the effective sample)
 FDR_Q = 0.10  # ... or one that fails Benjamini-Hochberg at this rate over every model x index x lead of the update
@@ -287,168 +288,74 @@ def skilful(c: dict | None) -> bool:
     return bool(c and c.get("skilful"))
 
 
+def masked(c: dict | None) -> bool:
+    """A lead the figures hatch: MASK is on and the lead has no demonstrated skill."""
+    return MASK and not skilful(c)
+
+
 # ── the blend ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-def season(init, t0: pd.Timestamp) -> np.ndarray:
-    """The season of each start: the year of the start moved so that t0's day of the year falls mid-year, so the
-    starts around t0 never straddle two seasons (around 5 January, November and February fall together)."""
-    shift = pd.Timedelta(days=int(slot366(pd.DatetimeIndex([t0]))[0]) - 183)
-    return (pd.DatetimeIndex(init) - shift).year.to_numpy()
-
-
-def crps_t(y: np.ndarray, mu: np.ndarray, scale: np.ndarray, nu: float) -> np.ndarray:
-    """The continuous ranked probability score of a Student t predictive distribution (location mu, scale, nu > 1
-    degrees of freedom) for the outcomes y (Jordan, Krueger and Lerch 2019, scoringRules' formula)."""
-    from scipy.special import beta
-    from scipy.stats import t as tdist
-
-    z = (y - mu) / scale
-    term = 2.0 * np.sqrt(nu) * beta(0.5, nu - 0.5) / ((nu - 1.0) * beta(0.5, nu / 2.0) ** 2)
-    return scale * (z * (2.0 * tdist.cdf(z, nu) - 1.0) + 2.0 * tdist.pdf(z, nu) * (nu + z * z) / (nu - 1.0) - term)
-
-
 def predictive(c: dict, x) -> tuple:
     """(location, scale, degrees of freedom) of cal_cdf's Student t for the predictor x under the fit c (at least
-    NU_MIN degrees of freedom: the CRPS of a t needs more than one)."""
+    NU_MIN degrees of freedom)."""
     x = np.asarray(x, np.float64)
     w = np.sqrt(1.0 + 1.0 / c["n_eff"] + (x - c["xbar"]) ** 2 / (c["sxx"] * c["n_eff"] / c["n"]))
     return c["a"] * x + c["b"], c["s"] * w, max(c["n_eff"] - 2.0, NU_MIN)
 
 
-def paired(d: np.ndarray, nxt: np.ndarray) -> float:
-    """One-sided p that the paired differences d (in start order; nxt as lag1 takes it) are below zero on average:
-    the t-test on the effective sample n (1 - rho) / (1 + rho), rho their lag-1 autocorrelation."""
-    from scipy.stats import t as tdist
+def mixture(parts: list) -> tuple:
+    """The equal-weight mixture of frozen distributions: its mean, 10th and 90th percentiles, and the chance of the
+    negative and of the positive phase (at or beyond THR)."""
+    from scipy.optimize import brentq
 
-    ok = np.isfinite(d)
-    n = int(ok.sum())
-    if n < MIN_RUNS or np.std(d[ok]) == 0:
-        return 1.0
-    rho = lag1(np.where(ok, d, np.nan), nxt)
-    neff = float(np.clip(n * (1 - rho) / (1 + rho), 3, n))
-    return float(tdist.cdf(d[ok].mean() / (d[ok].std(ddof=1) / np.sqrt(neff)), neff - 1))
+    def cdf(x: float) -> float:
+        return float(np.mean([d.cdf(x) for d in parts]))
 
-
-def wide(fc: pd.DataFrame, obs: pd.DataFrame, sid: str, keys: list[str], t0: pd.Timestamp) -> pd.DataFrame:
-    """(start, lead) x model: each model's ensemble-mean index and ERA5's (obs), for the starts within WINDOW days of
-    t0's day of the year that ERA5 covers."""
-    f = fc[fc["model"].isin([MODELS[k] for k in keys])]
-    d = (slot366(pd.DatetimeIndex(f["init"])) - slot366(pd.DatetimeIndex([t0]))[0] + 183) % 366 - 183
-    w = f[np.abs(d) <= WINDOW].pivot_table(index=["init", "lead_h"], columns="model", values=sid)
-    w = w.rename(columns={MODELS[k]: k for k in keys})
-    if w.empty:
-        return w
-    lead = pd.to_timedelta(w.index.get_level_values("lead_h").astype(int), unit="h")
-    w["obs"] = obs.set_index("valid")[sid].reindex(w.index.get_level_values("init") + lead).to_numpy()
-    return w[np.isfinite(w["obs"])]
+    lo, hi = min(d.ppf(0.001) for d in parts), max(d.ppf(0.999) for d in parts)
+    q10, q90 = (brentq(lambda x, q=q: cdf(x) - q, lo, hi) for q in (0.1, 0.9))
+    return float(np.mean([d.mean() for d in parts])), q10, q90, cdf(-THR), 1.0 - cdf(THR)
 
 
-def subset(w: pd.DataFrame, keys: list[str], t0: pd.Timestamp) -> list[str]:
-    """The models the blend takes: the most of them (two at least) whose weights can be tested out of sample at every
-    lead (blend_fit): a common sample at the last lead in two seasons or more, with MIN_RUNS starts outside each season
-    to fit on. The current season is short at the long leads (ERA5 a week behind), so a model with one season besides
-    it waits for a second. The sample only shrinks with lead, so the last lead decides; the larger sample breaks a
-    tie."""
-    import itertools
-
-    last = max(T.LEADS)
-    if w.empty or last not in w.index.get_level_values("lead_h"):
-        return []
-    end = w.xs(last, level="lead_h")
-    for n in range(len(keys), 1, -1):
-        found = []
-        for sub in itertools.combinations([k for k in keys if k in end], n):
-            g = end[list(sub)].dropna()
-            seasons, count = np.unique(season(g.index, t0), return_counts=True)
-            if len(seasons) >= 2 and (len(g) - count).min() >= MIN_RUNS:
-                found.append((len(g), list(sub)))
-        if found:
-            return max(found)[1]
-    return []
+SD_PER_RANGE = 1.0 / 2.5631  # a normal's sd from its 10-90 % range
 
 
-def blend_fit(w: pd.DataFrame, models: list[str], lead: int, t0: pd.Timestamp) -> dict | None:
-    """The blend of the models at one lead: equal weights (the mean of their ensemble-mean indices) or skill weights
-    (the regression of ERA5's index on theirs, fitted on this lead and the next ones either side), each calibrated as a
-    single model is (fit) and scored out of sample, leave-one-season-out (each season predicted from fits on the others),
-    against the other and against each model alone, on the same starts. Skill weights only where their cross-validated
-    CRPS beats the equal weights' significantly (paired, one-sided, at P_MAX); the cell's r and p, which the gate reads,
-    are the chosen blend's cross-validated ones."""
-    if lead not in w.index.get_level_values("lead_h"):
-        return None
-    g = w.xs(lead, level="lead_h")[[*models, "obs"]].dropna().sort_index()
-    sea = season(g.index, t0)
-    if len(g) < MIN_RUNS or len(np.unique(sea)) < 2:
-        return None
-    near = np.isin(w.index.get_level_values("lead_h"), [lead - 24, lead, lead + 24])
-    pool = w[near][[*models, "obs"]].dropna()
-    psea = season(pool.index.get_level_values("init"), t0)
-    pos = {t: k for k, t in enumerate(g.index)}
-    nxt = np.array([pos.get(t + pd.Timedelta(days=1), -1) for t in g.index])
-    f, o = g[models].to_numpy(np.float64), g["obs"].to_numpy(np.float64)
-
-    def weights(train: np.ndarray) -> np.ndarray:
-        p = pool[train]
-        a = np.c_[np.ones(len(p)), p[models].to_numpy(np.float64)]
-        return np.linalg.lstsq(a, p["obs"].to_numpy(np.float64), rcond=None)[0][1:]
-
-    x = {"ew": f.mean(1), **{k: f[:, j] for j, k in enumerate(models)}}
-    mu = {k: np.full(len(g), np.nan) for k in [*x, "sw"]}
-    crps = {k: np.full(len(g), np.nan) for k in mu}
-    for y in np.unique(sea):
-        test, train = sea == y, sea != y
-        for k, xk in (x | {"sw": f @ weights(psea != y)}).items():
-            c = fit(np.where(train, xk, np.nan), np.where(train, o, np.nan), nxt)
-            if c is None:
-                return None
-            m, sc, nu = predictive(c, xk[test])
-            mu[k][test], crps[k][test] = m, crps_t(o[test], m, sc, nu)
-    p_sw = paired(crps["sw"] - crps["ew"], nxt)
-    kind = "sw" if p_sw <= P_MAX else "ew"
-    best = min(models, key=lambda k: crps[k].mean())
-    wt = weights(np.ones(len(pool), bool)) if kind == "sw" else np.full(len(models), 1.0 / len(models))
-    c, cv = fit(f @ wt, o, nxt), fit(mu[kind], o, nxt)
-    if c is None or cv is None:
-        return None
-    return c | {
-        "r_in": c["r"], "r": cv["r"], "p": cv["p"], "kind": kind, "weights": dict(zip(models, wt.tolist(), strict=True)),
-        "crps": {k: float(v.mean()) for k, v in crps.items()}, "p_sw": p_sw, "best": best,
-        "p_best": paired(crps[kind] - crps[best], nxt), "seasons": [int(y) for y in np.unique(sea)],
-    }  # fmt: skip
-
-
-def blend(fc, obs, ref: T.Ref, runs: list[dict], rec: dict) -> dict:
-    """Per index: the blend's models, its fit at each lead (blend_fit), and its forecast from the newest start the run
-    records hold for all of them: the calibrated mean, its 10-90 % range and, at the skilful leads, the chance of each
-    phase."""
+def blend(ref: T.Ref, runs: list[dict], rec: dict, cal: dict) -> dict:
+    """Per index: the blend's models (every one with runs on record, two at least) and its forecast from the newest
+    start the records hold for all of them: at each lead they all reach, the mixture of their predictive distributions
+    (mixture) - a model's calibrated Student t from its ensemble mean where it has a fit (``fitted`` names those), else
+    a normal on its members' mean and 10-90 % range."""
+    from scipy.stats import norm
     from scipy.stats import t as tdist
 
     keys = [r["key"] for r in runs if rec.get(r["key"])]
-    t0 = max(r["init"] for r in runs)
     out = {}
     for sid in ref.ids:
-        w = wide(fc, obs, sid, keys, t0) if fc is not None and obs is not None else pd.DataFrame()
-        models = subset(w, keys, t0)
-        e = {"models": models, "fit": {lead: blend_fit(w, models, lead, t0) if models else None for lead in T.LEADS}}
-        held = [{x["init"] for x in rec[k] if sid in x} for k in models]
+        e = {"models": keys if len(keys) > 1 else []}
+        held = [{x["init"] for x in rec[k] if sid in x} for k in e["models"]]
         if held and (common := set.intersection(*held)):
             init = max(common)
             t = pd.DatetimeIndex(pd.Timestamp(init) + pd.to_timedelta(list(T.LEADS), unit="h"))
-            f = np.stack([
-                pd.Series(_arr(x[sid]["mean"]), index=pd.DatetimeIndex(x["valid"])).reindex(t).to_numpy()
-                for x in (next(x for x in rec[k] if x["init"] == init) for k in models)
-            ])  # fmt: skip
+            at = [next(x for x in rec[k] if x["init"] == init) for k in keys]
+            f, p10, p90 = (np.stack([pd.Series(_arr(x[sid][q]), index=pd.DatetimeIndex(x["valid"])).reindex(t).to_numpy()
+                                     for x in at]) for q in ("mean", "p10", "p90"))  # fmt: skip
             mean, lo, hi = (np.full(len(t), np.nan) for _ in range(3))
-            prob = {}
+            prob, fitted = {}, {}
             for j, lead in enumerate(T.LEADS):
-                c = e["fit"][lead]
-                if c is None or not np.isfinite(f[:, j]).all():
+                parts, fits = [], []
+                for i, k in enumerate(keys):
+                    if c := cal[k][sid, lead]:
+                        m, sc, nu = predictive(c, f[i, j])
+                        parts.append(tdist(nu, loc=float(m), scale=float(sc)))
+                        fits.append(k)
+                    else:
+                        parts.append(norm(loc=f[i, j], scale=(p90[i, j] - p10[i, j]) * SD_PER_RANGE))
+                if not all(
+                    np.isfinite(d.mean()) and np.isfinite(d.ppf(0.9)) and d.ppf(0.1) < d.ppf(0.9) for d in parts
+                ):
                     continue
-                xj = float(np.dot([c["weights"][k] for k in models], f[:, j]))
-                m, sc, nu = predictive(c, xj)
-                mean[j], lo[j], hi[j] = m, m + sc * tdist.ppf(0.1, nu), m + sc * tdist.ppf(0.9, nu)
-                prob[lead] = (xj, float(cal_cdf(-THR, c, xj)), float(1.0 - cal_cdf(THR, c, xj)))
+                mean[j], lo[j], hi[j], pn, pq = mixture(parts)
+                prob[lead], fitted[lead] = (float(mean[j]), pn, pq), fits
             e |= {"init": pd.Timestamp(init), "valid": t, "mean": mean, "lo": lo, "hi": hi, "prob": prob,
-                  "reach": np.isfinite(f).all(0)}  # fmt: skip
+                  "fitted": fitted, "reach": np.isfinite(f).all(0)}  # fmt: skip
         out[sid] = e
     return out
 
@@ -506,7 +413,7 @@ def spans(t: pd.DatetimeIndex, bad: np.ndarray) -> list[tuple]:
 
 
 def blend_label(b: dict) -> str:
-    return f"Blend of {', '.join(MODELS[k] for k in b['models'])} · {b['init']:%-d %b %HZ} runs, calibrated"
+    return f"Blend: {', '.join(MODELS[k] for k in b['models'])} · {b['init']:%-d %b %HZ}"
 
 
 def grid(n: int) -> tuple[int, int, float]:
@@ -516,7 +423,7 @@ def grid(n: int) -> tuple[int, int, float]:
 
 def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict, name: str, path: Path):
     """Every member's index (thin) and the ensemble mean, one panel per model, after ERA5's last weeks; the blend's
-    calibrated mean and 10-90 % range in a panel of its own; the leads without demonstrated skill hatched."""
+    mean and 10-90 % range in a panel of its own; with MASK the leads without demonstrated skill hatched."""
     plt, VF = _plt()
     import house
     from matplotlib.patches import Patch
@@ -543,7 +450,7 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict
         col = COLORS[r["key"]]
         ax.axhspan(-THR, THR, color=NEUTRAL, alpha=0.55, lw=0, zorder=0)
         ax.axhline(0, color=house.EDGE, lw=1.0, zorder=1)
-        bad = np.array([not skilful(cal[r["key"]][sid, int(h)]) for h in r["lead_h"]])
+        bad = np.array([masked(cal[r["key"]][sid, int(h)]) for h in r["lead_h"]])
         for a0, a1 in spans(t, bad):
             ax.axvspan(a0, a1, facecolor="none", edgecolor=house.EDGE, hatch="//", lw=0, zorder=0)
         ax.plot(t, v.T, color=col, lw=0.7, alpha=0.38, zorder=2)
@@ -558,9 +465,6 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict
         ax = axes.flat[len(runs)]
         ax.axhspan(-THR, THR, color=NEUTRAL, alpha=0.55, lw=0, zorder=0)
         ax.axhline(0, color=house.EDGE, lw=1.0, zorder=1)
-        bad = np.array([not skilful(cal["blend"][sid, h]) for h in T.LEADS])
-        for a0, a1 in spans(b["valid"], bad):
-            ax.axvspan(a0, a1, facecolor="none", edgecolor=house.EDGE, hatch="//", lw=0, zorder=0)
         ax.fill_between(b["valid"], b["lo"], b["hi"], color=BLEND_INK, alpha=0.14, lw=0, zorder=2)
         ax.plot(b["valid"], b["mean"], color=BLEND_INK, lw=3.0, zorder=4)
         if len(tail):
@@ -579,10 +483,10 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict
     handles = [
         plt.Line2D([], [], color=house.INK2, lw=0.9, alpha=0.6, label="each member"),
         plt.Line2D([], [], color=house.INK2, lw=3.0, label="ensemble mean"),
-        *[Patch(color=BLEND_INK, alpha=0.14, label="blend's calibrated 10–90 %")] * with_blend,
+        *[Patch(color=BLEND_INK, alpha=0.14, label="blend's 10–90 %")] * with_blend,
         *[plt.Line2D([], [], color=house.INK, lw=2.0, marker="o", ms=3.5, label="ERA5, 00Z")] * bool(len(tail)),
         Patch(facecolor=NEUTRAL, alpha=0.55, label=f"neutral, within ±{THR:g} sd"),
-        Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill"),
+        *[Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill")] * MASK,
     ]
     fig.legend(handles=handles, loc="outside lower center", ncols=min(len(handles), 6), frameon=False)
     fig.suptitle(f"{name}: each member's index every day and the ensemble mean, days 1–15", x=0.01, ha="left")
@@ -590,14 +494,15 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict
 
 
 def prob(sid: str, k: int, runs: list[dict], ind: dict, probs: dict, cal: dict, b: dict, name: str, path: Path):
-    """The calibrated chance of each phase by lead, one row per model and one for the blend, at the skilful leads only
-    (a lead the run does not reach, a 12Z ECMWF run's day 15, left blank)."""
+    """The chance of each phase by lead, one row per model (calibrated: blank at a lead with too few archived runs for
+    a fit) and one for the blend; with MASK the leads without demonstrated skill hatched. A lead the run does not
+    reach, a 12Z ECMWF run's day 15, is blank too."""
     plt, VF = _plt()
     import house
     from matplotlib.patches import Patch
 
     days = np.arange(1, len(T.LEADS) + 1)
-    # (key, the leads its forecast reaches, its probabilities, label); a blend lead without a fit is one without skill
+    # (key, the leads its forecast reaches, its probabilities, label)
     rows = [(r["key"], np.isfinite(ind[r["key"]][2][:, k]), probs[r["key"]], f"{MODELS[r['key']]}\n{r['init']:%-d %b %HZ}")
             for r in runs]  # fmt: skip
     if b.get("init") is not None and np.isfinite(b["mean"]).any():
@@ -607,10 +512,10 @@ def prob(sid: str, k: int, runs: list[dict], ind: dict, probs: dict, cal: dict, 
                              constrained_layout=True, squeeze=False)  # fmt: skip
     for ax, (key, reach, pr, label) in zip(axes[:, 0], rows, strict=True):
         for d, h in zip(days, T.LEADS, strict=True):
-            c, pp = cal[key][sid, h], pr.get((sid, h))
-            if not reach[d - 1]:
+            pp = pr.get((sid, h))
+            if not reach[d - 1] or (pp is None and not MASK):
                 continue
-            if not skilful(c) or pp is None:
+            if pp is None or (key in cal and masked(cal[key][sid, h])):
                 ax.bar(d, 1.0, width=0.86, facecolor="none", edgecolor=house.EDGE, hatch="//", lw=0)
                 continue
             pn, pq = pp
@@ -628,18 +533,20 @@ def prob(sid: str, k: int, runs: list[dict], ind: dict, probs: dict, cal: dict, 
         Patch(color=POS, label=f"positive, ≥ +{THR:g} sd"),
         Patch(color=NEUTRAL, label="neutral"),
         Patch(color=NEG, label=f"negative, ≤ −{THR:g} sd"),
-        Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill: no probability"),
+        Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill: no probability")
+        if MASK
+        else Patch(
+            facecolor="white", edgecolor=house.EDGE, label=f"blank: fewer than {MIN_RUNS} past runs to calibrate on"
+        ),
     ]
     fig.legend(handles=handles, loc="outside lower center", ncols=4, frameon=False)
     fig.suptitle(f"{name}: calibrated chance of each phase by lead (%)", x=0.01, ha="left")
     return VF.save(fig, path)
 
 
-def skill(sid: str, runs: list[dict], cal: dict, b: dict, name: str, t0: pd.Timestamp, path: Path):
+def skill(sid: str, runs: list[dict], cal: dict, name: str, t0: pd.Timestamp, path: Path):
     """The hindcast correlation of each model's ensemble-mean index with ERA5's by lead, and each cell's sample (runs):
-    coloured where skilful, grey where tested and not, blank below MIN_RUNS runs; the blend's cross-validated
-    correlation (SW where skill weights beat equal ones), and beneath it the change of its cross-validated CRPS from the
-    best single model's and the skill weights' from the equal weights', in bold where the paired test finds it."""
+    coloured where skilful, grey where tested and not, blank below MIN_RUNS runs."""
     plt, VF = _plt()
     import house
     from matplotlib.colors import LinearSegmentedColormap
@@ -647,9 +554,8 @@ def skill(sid: str, runs: list[dict], cal: dict, b: dict, name: str, t0: pd.Time
 
     cmap = LinearSegmentedColormap.from_list("r", ["#e3eaf3", house.ACCENT])
     days = np.arange(1, len(T.LEADS) + 1)
-    rows = [(r["key"], MODELS[r["key"]]) for r in runs] + [("blend", "Blend")] * bool(b["models"])
-    tests = [("best", "p_best", "CRPS vs best model"), ("sw", "p_sw", "Skill vs equal weights")] if b["models"] else []
-    fig, ax = plt.subplots(figsize=house.size(15, 0.1 + 0.075 * (len(rows) + len(tests))), constrained_layout=True)
+    rows = [(r["key"], MODELS[r["key"]]) for r in runs]
+    fig, ax = plt.subplots(figsize=house.size(15, 0.1 + 0.075 * len(rows)), constrained_layout=True)
     for i, (key, _) in enumerate(rows):
         for d, h in zip(days, T.LEADS, strict=True):
             c = cal[key][sid, h]
@@ -659,23 +565,10 @@ def skill(sid: str, runs: list[dict], cal: dict, b: dict, name: str, t0: pd.Time
                 x = min(max((c["r"] - SKILL_MIN) / (1 - SKILL_MIN), 0.0), 1.0)
                 face = cmap(x) if skilful(c) else NOT_SIG
                 ink = ink_on(face, house.INK)
-                text = f"{c['r']:.2f}\nn {c['n']}" + (" SW" if c.get("kind") == "sw" else "")
+                text = f"{c['r']:.2f}\nn {c['n']}"
             ax.add_patch(plt.Rectangle((d - 0.5, i - 0.5), 1, 1, facecolor=face, edgecolor="white", lw=2))
             ax.text(d, i, text, ha="center", va="center", color=ink, fontsize=12.5, linespacing=1.25)
-    for i, (which, pk, _) in enumerate(tests, start=len(rows)):
-        for d, h in zip(days, T.LEADS, strict=True):
-            c = cal["blend"][sid, h]
-            if c is None:
-                continue
-            ref = c["crps"][c["best"]] if which == "best" else c["crps"]["ew"]
-            new = c["crps"][c["kind"]] if which == "best" else c["crps"]["sw"]
-            sig = c[pk] <= P_MAX
-            ax.text(d, i, f"{100 * (new / ref - 1):+.0f}%" + (f"\n{MODELS[c['best']]}" if which == "best" else ""),
-                    ha="center", va="center", fontsize=11.5 if which == "best" else 12.5, linespacing=1.2,
-                    color=house.INK if sig else house.MUTED, fontweight="bold" if sig else "normal")  # fmt: skip
-    if tests:
-        ax.axhline(len(rows) - 0.5, color=house.EDGE, lw=1.2)
-    labels = [lab for _, lab in rows] + [lab for *_, lab in tests]
+    labels = [lab for _, lab in rows]
     ax.set(xlim=(0.5, len(days) + 0.5), ylim=(len(labels) - 0.5, -0.5), xticks=days, xlabel="Lead (days)")
     ax.set_yticks(range(len(labels)), labels)
     ax.tick_params(length=0)
@@ -684,9 +577,8 @@ def skill(sid: str, runs: list[dict], cal: dict, b: dict, name: str, t0: pd.Time
         Patch(color=cmap(0.6), label=f"skilful: r ≥ {SKILL_MIN:g}, significant at {P_MAX:g} and in the FDR test"),
         Patch(color=NOT_SIG, label="tested: no demonstrated skill"),
         Patch(facecolor="white", edgecolor=house.EDGE, label=f"–  fewer than {MIN_RUNS} runs"),
-        *[Patch(color="none", label=f"CRPS changes: bold where significant at {P_MAX:g}")] * bool(tests),
     ]
-    fig.legend(handles=handles, loc="outside lower center", ncols=3 if len(handles) < 4 else 2, frameon=False)
+    fig.legend(handles=handles, loc="outside lower center", ncols=3, frameon=False)
     fig.suptitle(
         f"{name}: hindcast correlation with ERA5 and runs (n) started within {WINDOW} days of {t0:%-d %B}",
         x=0.01,
@@ -770,8 +662,8 @@ def _arr(x: list) -> np.ndarray:
 
 def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path: Path):
     """The last SHOW runs' ensemble means against valid date, one panel per model: one shade per run start, the oldest
-    lightest, the newest darkest with its members' 10-90 % band; the newest run's leads without demonstrated skill
-    hatched."""
+    lightest, the newest darkest with its members' 10-90 % band; with MASK the newest run's leads without demonstrated
+    skill hatched."""
     plt, VF = _plt()
     import house
     from matplotlib.patches import Patch
@@ -793,7 +685,7 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
         ax.axhspan(-THR, THR, color=NEUTRAL, alpha=0.55, lw=0, zorder=0)
         ax.axhline(0, color=house.EDGE, lw=1.0, zorder=1)
         t = pd.DatetimeIndex(r["init"] + pd.to_timedelta(r["lead_h"].astype(int), unit="h"))
-        for a0, a1 in spans(t, np.array([not skilful(cal[key][sid, int(h)]) for h in r["lead_h"]])):
+        for a0, a1 in spans(t, np.array([masked(cal[key][sid, int(h)]) for h in r["lead_h"]])):
             ax.axvspan(a0, a1, facecolor="none", edgecolor=house.EDGE, hatch="//", lw=0, zorder=0)
         for j, x in enumerate(shown):
             tv, m = pd.DatetimeIndex(x["valid"]), _arr(x[sid]["mean"])
@@ -831,7 +723,7 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
     handles = [
         *lines,
         Patch(color=house.INK2, alpha=0.16, label="newest run's members, 10–90 %"),
-        Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill"),
+        *[Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill")] * MASK,
     ]
     fig.legend(handles=handles, loc="outside lower center", ncols=min(len(handles), 6), frameon=False)
     fig.suptitle(f"{name}: each run's ensemble mean by valid date, the oldest run lightest, the newest darkest", x=0.01,
@@ -885,6 +777,7 @@ def summary(ref: T.Ref, runs, ind, cal, probs, bl, fc, obs, figs) -> dict:
     out = {
         "made": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
         "window_days": WINDOW,
+        "mask": MASK,
         "gate": {"r_min": SKILL_MIN, "p_max": P_MAX, "fdr_q": FDR_Q, "min_runs": MIN_RUNS, "threshold_sd": THR},
         "era5_last": None if obs is None or obs.empty else f"{obs['valid'].max():%Y-%m-%d}",
         "hindcast": sample,
@@ -905,7 +798,7 @@ def summary(ref: T.Ref, runs, ind, cal, probs, bl, fc, obs, figs) -> dict:
                 if c:
                     row |= {"n": c["n"], "n_eff": _r(c["n_eff"], 1), "r": _r(c["r"], 2), "p": _r(c["p"], 4),
                             "fdr_ok": c["fdr_ok"], "skilful": c["skilful"]}  # fmt: skip
-                if skilful(c) and pp is not None:
+                if c and pp is not None:
                     row |= {"p_neg": _r(pp[0]), "p_pos": _r(pp[1]), "cal_mean": _r(c["a"] * mean[j, k] + c["b"], 2)}
                 rows.append(row)
             e["indices"][s] = rows
@@ -914,18 +807,16 @@ def summary(ref: T.Ref, runs, ind, cal, probs, bl, fc, obs, figs) -> dict:
     for s, b in bl.items():
         rows = []
         for j, lead in enumerate(T.LEADS):
-            c = cal["blend"][s, lead]
-            row = {} if c is None else {
-                "n": c["n"], "n_eff": _r(c["n_eff"], 1), "r_cv": _r(c["r"], 2), "p_cv": _r(c["p"], 4),
-                "r_in": _r(c["r_in"], 2), "fdr_ok": c["fdr_ok"], "skilful": c["skilful"], "weights": c["kind"],
-                "w": {k: _r(v, 3) for k, v in c["weights"].items()}, "seasons": c["seasons"],
-                "crps_cv": {k: _r(v, 4) for k, v in c["crps"].items()}, "p_sw": _r(c["p_sw"], 4),
-                "best": c["best"], "p_vs_best": _r(c["p_best"], 4),
-            }  # fmt: skip
+            row = {}
             if b.get("init") is not None and np.isfinite(b["mean"][j]):
-                row |= {"mean": _r(b["mean"][j], 2), "p10": _r(b["lo"][j], 2), "p90": _r(b["hi"][j], 2)}
-                if skilful(c) and lead in b["prob"]:
-                    row |= {"p_neg": _r(b["prob"][lead][1]), "p_pos": _r(b["prob"][lead][2])}
+                row = {
+                    "mean": _r(b["mean"][j], 2),
+                    "p10": _r(b["lo"][j], 2),
+                    "p90": _r(b["hi"][j], 2),
+                    "p_neg": _r(b["prob"][lead][1]),
+                    "p_pos": _r(b["prob"][lead][2]),
+                    "calibrated": b["fitted"][lead],
+                }
             rows.append(row)
         out["blend"][s] = {"models": b["models"], "init": None if b.get("init") is None else f"{b['init']:%Y-%m-%dT%H}:00Z",
                            "leads": rows}  # fmt: skip
@@ -940,15 +831,14 @@ def cmd_run(a) -> int:
     ref = T.Ref(a.ref)
     fc, obs = T.tables(a.table)
     if fc is None or obs is None:
-        log("::notice::no hindcast table yet: every lead is drawn without demonstrated skill")
+        log("::notice::no hindcast table yet: nothing is calibrated")
     ind = {r["key"]: member_indices(ref, r) for r in runs}
     for r in runs:
         record(a.site, ref, r, ind[r["key"]])
     rec = recorded(a.site)
     cal = {r["key"]: calibrate(fc, obs, MODELS[r["key"]], r["init"]) for r in runs}
-    bl = blend(fc, obs, ref, runs, rec)
-    cal["blend"] = {(s, lead): bl[s]["fit"][lead] for s in ref.ids for lead in T.LEADS}
-    gate(cal)  # every model's cells and the blend's, one family
+    gate(cal)
+    bl = blend(ref, runs, rec, cal)
     probs = {}
     for r in runs:
         mean = ind[r["key"]][2]
@@ -956,7 +846,7 @@ def cmd_run(a) -> int:
             (s, int(h)): (float(cal_cdf(-THR, c, mean[j, k])), float(1.0 - cal_cdf(THR, c, mean[j, k])))
             for k, s in enumerate(ref.ids)
             for j, h in enumerate(r["lead_h"])
-            if skilful(c := cal[r["key"]][s, int(h)]) and np.isfinite(mean[j, k])
+            if (c := cal[r["key"]][s, int(h)]) and not masked(c) and np.isfinite(mean[j, k])
         }
     out = a.site / FIG
     out.mkdir(parents=True, exist_ok=True)
@@ -973,13 +863,13 @@ def cmd_run(a) -> int:
         figs.append(plume(s, k, runs, ind, cal, obs, bl[s], name, out / f"{s}_plume.webp"))
         figs.append(prob(s, k, runs, ind, probs, cal, bl[s], name, out / f"{s}_prob.webp"))
         figs.append(evolution(s, runs, rec, cal, name, out / f"{s}_runs.webp"))
-        figs.append(skill(s, runs, cal, bl[s], name, t0, out / f"{s}_skill.webp"))
+        figs.append(skill(s, runs, cal, name, t0, out / f"{s}_skill.webp"))
     js = a.site / JSON_OUT
     js.parent.mkdir(parents=True, exist_ok=True)
     js.write_text(json.dumps(summary(ref, runs, ind, cal, probs, bl, fc, obs, figs), separators=(",", ":")) + "\n")
     passing = {
         f"{key} {s}": [lead // 24 for lead in T.LEADS if skilful(cal[key][s, lead])]
-        for key in [*(r["key"] for r in runs), "blend"]
+        for key in (r["key"] for r in runs)
         for s in ref.ids
     }
     log(f"teleconnections: {', '.join(r['key'] + ' ' + r['cycle'] for r in runs)}; skilful leads (days) {passing}")
@@ -987,31 +877,25 @@ def cmd_run(a) -> int:
 
 
 def cmd_skill(a) -> int:
-    """What the gate passes on a date from the hindcast table alone, every model and the blend of all four: the
+    """What the gate passes on a date from the hindcast table alone, every model: the
     skilful leads (days) per index, and the samples. Printed for the hindcast pass's log (telecon15.yml)."""
     fc, obs = T.tables(a.table)
     t0 = pd.Timestamp(a.date) if a.date else pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
     cal = {k: calibrate(fc, obs, m, t0) for k, m in MODELS.items()}
-    cal["blend"], used = {}, {}
-    for sid in T.IDS:
-        w = wide(fc, obs, sid, list(MODELS), t0)
-        used[sid] = subset(w, list(MODELS), t0)
-        cal["blend"] |= {(sid, lead): blend_fit(w, used[sid], lead, t0) if used[sid] else None for lead in T.LEADS}
     gate(cal)
     plain = {k: raw(fc, obs, m, t0) for k, m in MODELS.items()}
     print(f"hindcast skill for starts within {WINDOW} days of {t0:%-d %B}: at each lead day 1-15 the correlation of "
-          "the ensemble-mean index with ERA5's and the number of starts (r/n; the blend's cross-validated), then * "
+          "the ensemble-mean index with ERA5's and the number of starts (r/n), then * "
           f"skilful, x tested and not, - fewer than {MIN_RUNS} starts")  # fmt: skip
     for key, per in cal.items():
-        print(f"{MODELS.get(key, 'Blend')}")
+        print(MODELS[key])
         for sid in T.IDS:
             cells = []
             for lead in T.LEADS:
                 c = per[sid, lead]
                 r, n = (c["r"], c["n"]) if c else plain.get(key, {}).get((sid, lead), (np.nan, 0))
                 cells.append(f"{r:+.2f}/{n:<3d}{'*' if skilful(c) else 'x' if c else '-'}")
-            extra = f"  ({'+'.join(used[sid])})" if key == "blend" and used[sid] else ""
-            print(f"  {SHORT[sid]:6s} {' '.join(cells)}{extra}")
+            print(f"  {SHORT[sid]:6s} {' '.join(cells)}")
     return 0
 
 

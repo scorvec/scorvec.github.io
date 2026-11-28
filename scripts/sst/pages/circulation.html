@@ -402,7 +402,7 @@ window.STAGE = {
           b: {label: "View", items: [["plume","Members and means"],["prob","Phase probabilities"],["runs","Run to run"],["skill","Hindcast skill"]]},
           c: function (a) { return a === "nao" ? {label: "Flavour", items: [["nao","CPC"],["nao_hurrell","Hurrell stations"],["nao_pc","Hurrell PC"],["nao_jones","Jones"],["gbi","Greenland blocking"]]} : null; },
           img: function (a, b, c) { return "assets/telecon15/fig/" + (a === "nao" && c ? c : a) + "_" + b + ".webp"; }, frames: true, bust: "hourly", fit: false,
-          about: "about-telecon15", cap: function (a, b, c) { return {plume: "IFS-ENS, AIFS-ENS, GEFS and GEPS members, means and blend; hatched where unskilful.", prob: "Chance of ≥ +0.5 or ≤ −0.5 sd, calibrated; skilful days only.", runs: "Each ensemble's last eight runs; newest darkest.", skill: "Against ERA5 in past runs near this date."}[b]; }},
+          about: "about-telecon15", cap: function (a, b, c) { return {plume: "IFS-ENS, AIFS-ENS, GEFS and GEPS members, means, and the blend of all four.", prob: "Chance of ≥ +0.5 or ≤ −0.5 sd, calibrated, and the blend of all four.", runs: "Each ensemble's last eight runs; newest darkest.", skill: "Against ERA5 in past runs near this date."}[b]; }},
   rainfc: {label: "Rain forecast, weeks 1–2 (bias-adjusted)",
           a: {label: "Show", items: [["anom","Anomaly"],["terc","Favoured tercile"],["rain","Rain"],["dod","Change since yesterday"],["bias","Bias removed"]]},
           b: function (a) { return a === "bias" ? {label: "Model", items: [["ifs","IFS-ENS"],["aifs","AIFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]}

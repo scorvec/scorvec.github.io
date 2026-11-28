@@ -35,9 +35,8 @@ data are fetched.
            amplitude, read against the normal of the field's own hour, and the ensemble mean's index is the members'
            mean; the hindcast fit finds a planted correlation, counts consecutive daily starts as partly one case, and
            its predictive probabilities are reliable on fresh data; the gate passes the skilful leads only; a run is
-           recorded once; the CRPS of a Student t is the integral of its squared CDF error; the seasons of a window around
-           5 January join November and February; the blend of two equally skilful models takes equal weights and beats
-           either significantly, and that of a skilful model and a noise one takes skill weights
+           recorded once; the blend's mixture of one distribution twice is that distribution, and of two that disagree
+           spans both
   jet      the jet watch's box indices: a planted departure of c sigma in a box reads c against the valid day's normal,
            the trough's box is read less the mean north of 20N, and a lead short of members gives no ensemble mean
 """
@@ -710,57 +709,16 @@ def telecon():
           f"P(>= +0.5) is reliable on fresh cases: {p_pos.mean():.3f} forecast, {hit.mean():.3f} observed; the top "
           f"fifth {p_pos[top].mean():.3f}, {hit[top].mean():.3f}")  # fmt: skip
 
-    from scipy.stats import t as tdist
+    from scipy.stats import norm
 
-    xs = np.linspace(-60, 60, 240001)
-    num = np.trapezoid((tdist.cdf((xs - 0.3) / 1.4, 5.0) - (xs >= 1.1)) ** 2, xs)
+    one = ET.mixture([norm(0.4, 1.0), norm(0.4, 1.0)])
+    check(np.allclose(one, (0.4, norm.ppf(0.1, 0.4), norm.ppf(0.9, 0.4), norm.cdf(-ET.THR, 0.4), norm.sf(ET.THR, 0.4)), atol=1e-6),
+          "a mixture of one distribution twice is that distribution")  # fmt: skip
+    two = ET.mixture([norm(-1.0, 0.5), norm(1.0, 0.5)])
     check(
-        abs(ET.crps_t(np.array([1.1]), 0.3, 1.4, 5.0)[0] - num) < 5e-4,
-        "the CRPS of a Student t, by its formula and by integration",
+        abs(two[0]) < 1e-9 and two[1] < -1.0 < 1.0 < two[2] and abs(two[3] - two[4]) < 1e-9 and two[3] > 0.4,
+        f"two models that disagree: a mean between them, a range that spans both, {two[3]:.2f} on either phase",
     )
-    sea = ET.season(pd.DatetimeIndex(["2024-11-21", "2025-02-19", "2025-11-21"]), pd.Timestamp("2026-01-05"))
-    check(sea[0] == sea[1] != sea[2], "a window of starts around 5 January: November and February in one season")
-
-    # the blend over nine seasons of daily starts: an AR(1) observed index and models with independent errors, from a
-    # generator of its own (over three seasons either check fails for one draw in five or more: too few for the test)
-    rng = np.random.default_rng(20261107)
-    starts = pd.DatetimeIndex([d for y in range(2018, 2027) for d in pd.date_range(f"{y}-09-14", f"{y}-12-11")])
-    o = np.zeros(len(starts))
-    for k in range(1, len(o)):
-        o[k] = 0.85 * o[k - 1] + rng.normal(0, np.sqrt(1 - 0.85**2))
-
-    def table(fs: dict) -> pd.DataFrame:
-        idx = pd.MultiIndex.from_arrays([starts, np.full(len(starts), 24)], names=["init", "lead_h"])
-        return pd.DataFrame(fs | {"obs": o}, index=idx)
-
-    def err() -> np.ndarray:
-        e = np.zeros(len(o))
-        for k in range(1, len(o)):  # forecast errors persist from one start to the next, as real ones do
-            e[k] = 0.6 * e[k - 1] + rng.normal(0, 0.8)
-        return e
-
-    t0 = pd.Timestamp("2026-10-28")
-    same = ET.blend_fit(table({"ifs": 0.7 * o + err(), "gefs": 0.7 * o + err()}), ["ifs", "gefs"], 24, t0)
-    single = min(same["crps"]["ifs"], same["crps"]["gefs"])
-    check(same["kind"] == "ew" and same["crps"]["ew"] < single and same["p_best"] <= 0.05 and same["n"] == len(starts),
-          f"two equally skilful models: equal weights, cross-validated CRPS {same['crps']['ew']:.3f} against the best "
-          f"model's {single:.3f} (paired p {same['p_best']:.3f})")  # fmt: skip
-    noise = ET.blend_fit(table({"ifs": 0.8 * o + err(), "gefs": err()}), ["ifs", "gefs"], 24, t0)
-    check(noise["kind"] == "sw" and noise["weights"]["ifs"] > 5 * abs(noise["weights"]["gefs"]),
-          f"a skilful model and a noise one: skill weights {noise['weights']} (paired p {noise['p_sw']:.4f})")  # fmt: skip
-
-    # the blend's models: IFS-ENS and GEFS from 2024, AIFS-ENS from 2025, and this autumn's starts so far (fewer at
-    # day 15, ERA5 a week behind). Holding 2025 out would leave AIFS-ENS this autumn's starts alone to fit on at day 15.
-    last, rows = max(ET.T.LEADS), []
-    for lead, end in ((24, "2026-10-18"), (last, "2026-10-04")):
-        for y in (2024, 2025, 2026):
-            for d in pd.date_range(f"{y}-09-14", end if y == 2026 else f"{y}-12-11"):
-                rows.append((d, lead, 0.5, np.nan if y == 2024 else 0.5, 0.5, 0.0))
-    w = pd.DataFrame(rows, columns=["init", "lead_h", "ifs", "aifs", "gefs", "obs"]).set_index(["init", "lead_h"])
-    got = ET.subset(w, ["ifs", "aifs", "gefs"], t0)
-    check(got == ["ifs", "gefs"], f"a model with one season besides the current one waits for a second: {got}")
-    got = ET.subset(w.drop(index=w.index[w.index.get_level_values("lead_h") == last]), ["ifs", "aifs", "gefs"], t0)
-    check(got == [], f"no blend without a sample at the last lead: {got}")
 
 
 def jet_boxes():
