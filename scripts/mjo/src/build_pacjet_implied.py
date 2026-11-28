@@ -50,7 +50,7 @@ Z_LEV = [x for x in range(-150, 151, 20) if x]
 
 
 def skill(x: np.ndarray, y: np.ndarray, season: np.ndarray, rng) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """(slopes (2, point), r_cv (point), p (point)) of y (day, point) on x (day, 2) with whole seasons left out."""
+    """(slopes (k, point), r_cv (point), p (point)) of y (day, point) on x (day, k) with whole seasons left out."""
     X = np.c_[x, np.ones(len(x))]
     seasons = np.unique(season)
     pred = np.zeros_like(y)
@@ -74,7 +74,7 @@ def skill(x: np.ndarray, y: np.ndarray, season: np.ndarray, rng) -> tuple[np.nda
     draws = rng.integers(0, len(seasons), (N_BOOT, len(seasons)))
     boot = np.stack([corr(np.bincount(d, minlength=len(seasons)).astype(float)) for d in draws])
     p = (1 + (boot <= 0).sum(0)) / (1 + N_BOOT)
-    return np.linalg.lstsq(X, y, rcond=None)[0][:2], r, p
+    return np.linalg.lstsq(X, y, rcond=None)[0][:-1], r, p
 
 
 def main() -> int:
@@ -114,6 +114,72 @@ def main() -> int:
     return 0
 
 
+def draw(Z, xs: dict, weeks: dict, panels, title: str, sub: str, note: str, out: Path) -> None:
+    """Three maps of what the predictors imply. Z: the slopes ("<var>_<week>": (k, lat, lon), NaN where the link did
+    not hold) and grids; xs: {week: its k predictors}; weeks: {week: (first day, last day)}; panels: (var, week) x 3."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import house
+
+    house.apply()
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm
+
+    plt.rcParams.update({"font.size": 10.5, "font.family": "DejaVu Sans"})
+    proj, pc_ = ccrs.LambertConformal(central_longitude=-125, standard_parallels=(35, 60)), ccrs.PlateCarree()
+    ext = [BI.DOM["lon"][0], BI.DOM["lon"][1], BI.DOM["lat"][0] + 3, BI.DOM["lat"][1] - 3]
+    lon, lat = np.linspace(ext[0], ext[1], 60), np.linspace(ext[2], ext[3], 60)
+    edge = proj.transform_points(
+        pc_, np.r_[lon, lon, np.full(60, ext[0]), np.full(60, ext[1])], np.r_[np.full(60, ext[2]), np.full(60, ext[3]), lat, lat]
+    )  # fmt: skip
+    mw = 4.3
+    mh = mw * np.ptp(edge[:, 1]) / np.ptp(edge[:, 0])
+    gap, left, right, top, bot = 0.14, 0.2, 0.2, 1.3, 1.25
+    W, H = left + 3 * mw + 2 * gap + right, top + mh + bot
+    fig = plt.figure(figsize=(W, H))
+    spec = {"t2m": (T_LEV, "RdBu_r", "2 m temperature (°C)"), "prcp": (P_LEV, "BrBG", "precipitation (mm/day)")}
+    shade = {}
+    for k, (var, wk) in enumerate(panels):
+        ax = fig.add_axes([(left + k * (mw + gap)) / W, bot / H, mw / W, mh / H], projection=proj)
+        ax.set_extent(ext, crs=pc_)
+        lev, cmap, name = spec[var]
+        f = np.tensordot(xs[wk], Z[f"{var}_{wk}"], 1)
+        ax.add_feature(cfeature.LAND, facecolor="#f3f1ec", zorder=0)
+        shade[var] = ax.contourf(
+            Z[f"lon_{var}"], Z[f"lat_{var}"], f, lev, cmap=cmap, norm=BoundaryNorm(lev, 256, extend="both"),
+            extend="both", transform=pc_, zorder=1,
+        )  # fmt: skip
+        if var == "t2m":
+            zc = ax.contour(
+                Z["lon_z500"], Z["lat_z500"], np.tensordot(xs[wk], Z[f"z500_{wk}"], 1), Z_LEV, colors=house.INK,
+                linewidths=0.9, transform=pc_, zorder=3,
+            )  # fmt: skip
+            ax.clabel(zc, zc.levels[::2], fmt="%d", fontsize=7.5, inline_spacing=2)
+        ax.coastlines(linewidth=0.55, color="#55524c", zorder=2)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.35, edgecolor="#55524c", zorder=2)
+        ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#77736c", zorder=2)
+        a, b = weeks[wk]
+        ax.set_title(f"{name.split(' (')[0].capitalize()}, {a:%-d %b}–{b:%-d %b}", fontsize=11, loc="left", pad=4)
+        if not np.isfinite(f).any():
+            ax.text(0.5, 0.5, "no skilful signal", transform=ax.transAxes, ha="center", color=house.MUTED, fontsize=10)
+    fig.text(left / W, 1 - 0.36 / H, title, fontsize=15, weight="bold", ha="left")
+    fig.text(left / W, 1 - 0.66 / H, sub, fontsize=10.5, color=house.MUTED, ha="left")
+    for x0, var in ((left, "t2m"), (left + mw + gap, "prcp")):
+        cax = fig.add_axes([(x0 + 0.5) / W, 0.78 / H, (mw - 1.0) / W, 0.13 / H])
+        cb = fig.colorbar(shade[var], cax=cax, orientation="horizontal", ticks=spec[var][0])
+        cb.ax.tick_params(labelsize=8)
+        house.spaced(cb.ax.xaxis)
+        cb.set_label(spec[var][2], fontsize=8.8)
+    fig.text(
+        (left + 2 * (mw + gap)) / W, 0.98 / H, textwrap.fill(note, 64), fontsize=8.2, color=house.MUTED, ha="left", va="top"
+    )  # fmt: skip
+    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
+
+
 def render(label: str, init: pd.Timestamp, pcs: np.ndarray, month: int, out: Path) -> dict:
     """Draw what the ensemble-mean jet indices of forecast days PRED_DAYS imply. label: the ensemble's name;
     pcs: (member, day from 0, 2); month: the month the indices are read on, outside SEASON a note is drawn.
@@ -129,83 +195,19 @@ def render(label: str, init: pd.Timestamp, pcs: np.ndarray, month: int, out: Pat
             "months.",
         )
         return {"in_season": False}
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import house
-
-    house.apply()
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import BoundaryNorm
-
-    plt.rcParams.update({"font.size": 10.5, "font.family": "DejaVu Sans"})
-    Z = np.load(NPZ)
     x = pcs[:, PRED_DAYS[0] : PRED_DAYS[1] + 1].mean((0, 1))
     mid = init + pd.Timedelta(days=sum(PRED_DAYS) // 2)
     weeks = {k: (mid + pd.Timedelta(days=off - 3), mid + pd.Timedelta(days=off + 3)) for k, off in WEEKS.items()}
-    proj, pc_ = ccrs.LambertConformal(central_longitude=-125, standard_parallels=(35, 60)), ccrs.PlateCarree()
-    ext = [BI.DOM["lon"][0], BI.DOM["lon"][1], BI.DOM["lat"][0] + 3, BI.DOM["lat"][1] - 3]
-    lon, lat = np.linspace(ext[0], ext[1], 60), np.linspace(ext[2], ext[3], 60)
-    edge = proj.transform_points(
-        pc_, np.r_[lon, lon, np.full(60, ext[0]), np.full(60, ext[1])], np.r_[np.full(60, ext[2]), np.full(60, ext[3]), lat, lat]
-    )  # fmt: skip
-    mw = 4.3
-    mh = mw * np.ptp(edge[:, 1]) / np.ptp(edge[:, 0])
-    gap, left, right, top, bot = 0.14, 0.2, 0.2, 1.3, 1.25
-    W, H = left + 3 * mw + 2 * gap + right, top + mh + bot
-    fig = plt.figure(figsize=(W, H))
-    spec = {"t2m": (T_LEV, "RdBu_r", "2 m temperature (°C)"), "prcp": (P_LEV, "BrBG", "precipitation (mm/day)")}
-    shade = {}
-    for k, (var, wk) in enumerate(PANELS):
-        ax = fig.add_axes([(left + k * (mw + gap)) / W, bot / H, mw / W, mh / H], projection=proj)
-        ax.set_extent(ext, crs=pc_)
-        lev, cmap, name = spec[var]
-        f = np.tensordot(x, Z[f"{var}_{wk}"], 1)
-        ax.add_feature(cfeature.LAND, facecolor="#f3f1ec", zorder=0)
-        shade[var] = ax.contourf(
-            Z[f"lon_{var}"], Z[f"lat_{var}"], f, lev, cmap=cmap, norm=BoundaryNorm(lev, 256, extend="both"),
-            extend="both", transform=pc_, zorder=1,
-        )  # fmt: skip
-        if var == "t2m":
-            zc = ax.contour(
-                Z["lon_z500"], Z["lat_z500"], np.tensordot(x, Z[f"z500_{wk}"], 1), Z_LEV, colors=house.INK,
-                linewidths=0.9, transform=pc_, zorder=3,
-            )  # fmt: skip
-            ax.clabel(zc, zc.levels[::2], fmt="%d", fontsize=7.5, inline_spacing=2)
-        ax.coastlines(linewidth=0.55, color="#55524c", zorder=2)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.35, edgecolor="#55524c", zorder=2)
-        ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#77736c", zorder=2)
-        a, b = weeks[wk]
-        ax.set_title(f"{name.split(' (')[0].capitalize()}, {a:%-d %b}–{b:%-d %b}", fontsize=11, loc="left", pad=4)
-        if not np.isfinite(f).any():
-            ax.text(0.5, 0.5, "no skilful signal", transform=ax.transAxes, ha="center", color=house.MUTED, fontsize=10)
-    fig.text(left / W, 1 - 0.36 / H, f"What the {label} jet implies", fontsize=15, weight="bold", ha="left")
     state = ", ".join(
         f"{name} {v:+.1f} σ".replace("-", "−") for name, v in zip(("extension index", "poleward shift index"), x)
     )
-    fig.text(
-        left / W, 1 - 0.66 / H,
-        f"Init {init:%Y-%m-%d %HZ}. Ensemble-mean jet, days {PRED_DAYS[0]}–{PRED_DAYS[1]}: {state}",
-        fontsize=10.5, color=house.MUTED, ha="left",
-    )  # fmt: skip
-    for x0, var in ((left, "t2m"), (left + mw + gap, "prcp")):
-        cax = fig.add_axes([(x0 + 0.5) / W, 0.78 / H, (mw - 1.0) / W, 0.13 / H])
-        cb = fig.colorbar(shade[var], cax=cax, orientation="horizontal", ticks=spec[var][0])
-        cb.ax.tick_params(labelsize=8)
-        house.spaced(cb.ax.xaxis)
-        cb.set_label(spec[var][2], fontsize=8.8)
     note = (
         f"From ERA5 {BI.Y0}–{BI.Y1}, November to March: the week's anomaly that went with a jet like this one. Colour "
         f"only where that link held out of sample (seasons left out, false-discovery rate {ALPHA:.0%}, correlation at "
         f"least {R_MIN}). Lines: 500 hPa height (every 20 m, dashed = lower). The last week lies beyond the forecast."
     )
-    fig.text(
-        (left + 2 * (mw + gap)) / W, 0.98 / H, textwrap.fill(note, 64), fontsize=8.2, color=house.MUTED, ha="left", va="top"
-    )  # fmt: skip
-    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
-    plt.close(fig)
+    sub = f"Init {init:%Y-%m-%d %HZ}. Ensemble-mean jet, days {PRED_DAYS[0]}–{PRED_DAYS[1]}: {state}"
+    draw(np.load(NPZ), dict.fromkeys(WEEKS, x), weeks, PANELS, f"What the {label} jet implies", sub, note, out)
     return {
         "in_season": True,
         "pc": np.round(x, 2).tolist(),

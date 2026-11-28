@@ -4,7 +4,8 @@ name: North Pacific jet - weeks 3-5 (GEFS)
 # day later), its weekly-mean 250 hPa zonal wind and Himalayan mountain torque less GEFS's reforecast drift (release
 # pacjet-ref-v1, built by pacjet-rf.yml), for the weeks that passed on the reforecast
 # (scripts/mjo/data/reference/pacjet_rf_skill.json) -> assets/sst/pacjet_ext.webp, pacjet_gefs_phase.webp (the phase
-# diagram of a week with both jet indices) and assets/sst/data/pacjet_ext.json.
+# diagram of a week with both jet indices), pacjet_gefs_implied.webp (what weeks 3 and 4 imply over North America) and
+# assets/sst/data/pacjet_ext.json.
 # The second cron is a backstop: a run already published is skipped.
 on:
   schedule:
@@ -73,14 +74,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # snapshot the outputs, then commit them on a clean sync of origin/main each attempt (never a rebase)
-          OUT="assets/sst/pacjet_ext.webp assets/sst/pacjet_gefs_phase.webp assets/sst/data/pacjet_ext.json"
+          OUT="assets/sst/pacjet_ext.webp assets/sst/pacjet_gefs_phase.webp assets/sst/pacjet_gefs_implied.webp assets/sst/data/pacjet_ext.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch --filter=blob:none origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
-            git sparse-checkout add /assets/sst/pacjet_ext.webp /assets/sst/pacjet_gefs_phase.webp
+            git sparse-checkout add /assets/sst/pacjet_ext.webp /assets/sst/pacjet_gefs_phase.webp /assets/sst/pacjet_gefs_implied.webp
             for f in $OUT; do [ -e "$f" ] && git add --sparse "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "North Pacific jet, weeks 3-5: GEFS ${{ steps.which.outputs.date }}"

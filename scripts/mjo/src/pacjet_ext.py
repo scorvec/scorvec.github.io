@@ -21,7 +21,8 @@ A week in which both jet indices passed also gets the phase diagram (assets/sst/
 in the plane of the two indices, the share of them in each phase (pacjet_core.phase_of of the weekly means) against
 ERA5's share of 7-day means in that phase in the week's month and its neighbours (binomial test of the members' count,
 Benjamini-Hochberg at FDR_Q over the phases), and the AIFS-ENS mean's days 0-15 leading in where it is read on the
-same month's patterns.
+same month's patterns. With week 4's extension index as well, what the two weeks' mean indices imply over North America
+(build_pacjet_implied_wk.render -> assets/sst/pacjet_gefs_implied.webp), November to March.
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ from scipy.stats import binomtest
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "gefs"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+import build_pacjet_implied_wk as BW
 import gefs_live as GL
 import gefs_reforecast as RF
 import hadley_slp_ref as R
@@ -365,6 +367,16 @@ def main() -> int:
         render_phase(doc, out / "data" / "pacjet_aifs.json", phase)
     else:
         phase.unlink(missing_ok=True)
+    implied = out / "pacjet_gefs_implied.webp"
+    wk = {row["week"]: row for row in doc["weeks"]}
+    drawn = (
+        "phase" in wk.get(3, {})
+        and "pc1" in wk.get(4, {"targets": {}})["targets"]
+        and BW.render(run, doc["members"], wk[3], wk[4], implied)
+    )
+    if not drawn:
+        implied.unlink(missing_ok=True)
+    doc["implied"] = bool(drawn)
     if any(row["targets"] for row in doc["weeks"]):
         render(doc, skill, fig)
     else:
