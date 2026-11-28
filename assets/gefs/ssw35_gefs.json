@@ -1,1 +1,1 @@
-{"model": "GEFS", "init": "2026-11-26T00Z", "members": 31, "weeks": [{"days": [1, 7], "first": 0, "by_end": 0}, {"days": [8, 14], "first": 0, "by_end": 0}, {"days": [15, 21], "first": 0, "by_end": 0}, {"days": [22, 28], "first": 0, "by_end": 0}]}
+{"model": "GEFS", "init": "2026-11-27T00Z", "members": 31, "weeks": [{"days": [1, 7], "first": 0, "by_end": 0}, {"days": [8, 14], "first": 0, "by_end": 0}, {"days": [15, 21], "first": 0, "by_end": 0}, {"days": [22, 28], "first": 0, "by_end": 0}, {"days": [29, 34], "first": 1, "by_end": 1}]}
