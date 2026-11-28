@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-28 19:47 UTC",
+  "generated": "2026-11-28 21:38 UTC",
   "sst_valid_day": "2026-11-27",
   "roni_latest_month": "2026-10",
   "roni_latest_value": 2.383,
@@ -13,7 +13,7 @@
   "daily_atl3": 1.389,
   "daily_tna": 1.205,
   "anim_days": 90,
-  "ver": 1795895267,
+  "ver": 1795901916,
   "files": {
     "global": "global_sst_anom.webp",
     "tropical": "tropical_sst_anom.webp",
