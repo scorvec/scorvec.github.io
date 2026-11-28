@@ -132,7 +132,7 @@ jobs:
         run: pip install -r scripts/sst/requirements-sst.txt
       - name: This run's ${{ matrix.model }} file
         if: inputs.extract
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: fields-${{ matrix.model }}
           path: fields
@@ -175,14 +175,14 @@ jobs:
         run: pip install -r scripts/sst/requirements-sst.txt
       - name: This run's per-model files
         if: inputs.extract
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: fields-*
           path: fresh
           merge-multiple: true
       - name: This run's RMM files
         if: needs.rmm.result == 'success' || needs.rmm.result == 'failure'   # the models that finished
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: rmm-*
           path: fresh

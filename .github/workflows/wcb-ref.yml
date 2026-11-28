@@ -112,7 +112,7 @@ jobs:
           echo "dbea2b2f3d836fb3190b3ca2b2e0c0bc  wcbmetric_v2.zip" | md5sum -c -
           mkdir archive && unzip -q wcbmetric_v2.zip -d archive
       - name: Environment (Keras 2 and windspharm beside the module's own imports)
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-name: wcb
           condarc: |
