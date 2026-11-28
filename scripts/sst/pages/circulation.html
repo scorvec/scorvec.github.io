@@ -103,6 +103,9 @@
 <template id="about-jetext">
 <p class="chart-sources">ECMWF AIFS-ENS (control + 50 members) and IFS-ENS (50 members) 250&nbsp;hPa u and v, open data (CC BY 4.0), Google Cloud mirror &middot; onsets, composites and odds: ERA5 1991&ndash;2020 daily 250&nbsp;hPa wind, 500&nbsp;hPa height, sea-level pressure and 200&nbsp;hPa wind (for the velocity potential) via WeatherBench&nbsp;2 (Copernicus C3S) &middot; now and ahead: the MJO page&rsquo;s wind-only RMM, the Siberian High and East Asian trough of each ensemble&rsquo;s newest run, the IFS-ENS Himalayan torque forecast and NOAA CPC&rsquo;s ONI &middot; phases after Winters, Keyser &amp; Bosart (2019, <i>Wea. Forecasting</i> 34, 199&ndash;219) &middot; FDR: Wilks (2016, <i>Bull. Amer. Meteor. Soc.</i> 97, 2263&ndash;2273) &middot; updated twice daily</p>
 </template>
+<template id="about-jetweeks">
+<p class="chart-sources">NOAA GEFS 00&nbsp;UTC, control + 30 members, 250&nbsp;hPa zonal wind and surface pressure to day 35 (NOAA Open Data on AWS) &middot; drift and skill: the GEFSv12 reforecast, 1,043 Wednesday starts 2000&ndash;2019 &middot; ERA5 1991&ndash;2020 250&nbsp;hPa wind via WeatherBench&nbsp;2 and 0.25&deg; surface pressure via ARCO-ERA5 (Copernicus C3S) &middot; phases after Winters, Keyser and Bosart (2019) &middot; updated daily</p>
+</template>
 <template id="about-jetbr">
 <p class="chart-sources">ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, t, u and v on nine levels 700&ndash;100&nbsp;hPa, Google Cloud mirror &middot; normals: ERA5 1991&ndash;2020 via WeatherBench&nbsp;2 (Copernicus C3S) &middot; method: Winters &amp; Martin (2014, <i>Wea. Forecasting</i> 29, 954&ndash;974), Christenson, Martin &amp; Handlos (2017, <i>J. Climate</i> 30, 7231&ndash;7246), Winters, Keyser, Bosart &amp; Martin (2020, <i>Mon. Wea. Rev.</i> 148, 1987&ndash;2008), Koch, Wernli &amp; Schwierz (2006, <i>Int. J. Climatol.</i> 26, 283&ndash;301) &middot; updated daily</p>
 </template>
@@ -468,7 +471,7 @@ window.STAGE = {
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
           frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=__CACHE__"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Cores marked." : "Members and mean against the normal band."; }},
-  pacjet: {label: "North Pacific jet", a: {label: "View", items: [["maps","Jet maps"],["axis","Jet axis"],["ext","Extension watch"],["phase","Phase & impacts"],["torque","Torque (research)"]].concat(JETBR_SHOW ? [["branches","Jet branches"]] : [])},
+  pacjet: {label: "North Pacific jet", a: {label: "View", items: [["maps","Jet maps"],["axis","Jet axis"],["ext","Extension watch"],["weeks","Weeks 3–5"],["phase","Phase & impacts"],["torque","Torque (research)"]].concat(JETBR_SHOW ? [["branches","Jet branches"]] : [])},
           b: function (a) { return a === "maps" ? {label: "Period", items: [["wk1","Week 1"],["wk2","Week 2"],["loop","Day by day (loop)"]]}
                                   : a === "ext" ? {label: "Show", items: [["tracker","Tracker"],["drivers","What favours it"],["before","Before an onset (ERA5)"]]}
                                   : a === "phase" ? {label: "Show", items: [["diagram","Phase diagram"],["implied","What the forecast implies"],["lag0","What each phase brings"],["lag3_7","… 3–7 days later"]]}
@@ -481,8 +484,8 @@ window.STAGE = {
           img: function (a, b, c) { return a === "maps" ? "assets/sst/pacjet_" + c + "_" + b + ".webp" : a === "axis" ? "assets/sst/pacjet_" + c + "_axis.webp"
                                          : a === "ext" ? (b === "tracker" ? "assets/sst/pacjet_" + c + "_event.webp" : "assets/sst/pacjet_drivers.webp")
                                          : a === "phase" ? (b === "diagram" || b === "implied" ? "assets/sst/pacjet_" + c + "_" + (b === "diagram" ? "phase" : "implied") + ".webp" : "assets/sst/pacjet_impacts_" + b + ".webp")
-                                         : a === "branches" ? "assets/sst/jetbr_ifs_events.webp" : "assets/sst/pacjet_torque.webp"; }, bust: "hourly", fit: false,
-          about: function (a) { return a === "branches" ? "about-jetbr" : a === "ext" ? "about-jetext" : "about-pacjet"; }, cap: function (a, b) { return {maps: "Ensemble mean.", axis: "Every member against the ERA5 normal axis.", ext: "ERA5-based; significant only.", phase: b === "diagram" ? "Member by member, with measured skill." : "ERA5; significant only.", torque: "Research view; significant only.", branches: "IFS-ENS against the ERA5 rate; drawn only where it beats it."}[a]; }}
+                                         : a === "branches" ? "assets/sst/jetbr_ifs_events.webp" : a === "weeks" ? "assets/sst/pacjet_ext.webp" : "assets/sst/pacjet_torque.webp"; }, bust: "hourly", fit: false,
+          about: function (a) { return a === "branches" ? "about-jetbr" : a === "ext" ? "about-jetext" : a === "weeks" ? "about-jetweeks" : "about-pacjet"; }, cap: function (a, b) { return {maps: "Ensemble mean.", axis: "Every member against the ERA5 normal axis.", ext: "ERA5-based; significant only.", weeks: "GEFS members less drift; only the weeks with skill.", phase: b === "diagram" ? "Member by member, with measured skill." : "ERA5; significant only.", torque: "Research view; significant only.", branches: "IFS-ENS against the ERA5 rate; drawn only where it beats it."}[a]; }}
 }
 };
 
