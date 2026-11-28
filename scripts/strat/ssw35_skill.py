@@ -19,6 +19,18 @@ other winters (whether a calibrated chance would have skill where the raw share 
 same fit on every winter is kept with each week, and `chance` marks the weeks where the cross-validated fit on the raw
 share (the page counts the members as they come) has significant skill: ssw.html gives GEFS's chance there.
 
+Vortex strength: the week's mean drift-corrected u(60N, 10 hPa) as an anomaly from the normal. The members' mean is
+scored by its mean-squared-error skill against the normal (and its correlation with MERRA-2's weekly anomaly); a
+weak-vortex week, the week's mean in the lowest WEAK_Q of MERRA-2's 1991-2020 weekly means for the time of year
+(thresholds by the common-year day of the week's middle, pooled over POOL days either side), as a probability from the
+share of members, with its logistic recalibration; `chance` marks the weeks where that calibrated chance has
+significant skill, and `passes` those where the mean anomaly has.
+
+Large pulse: a member's weekly mean 100 hPa flux at LARGE_Z or more, counted as it comes, scored like the heat-flux
+week (`large`); and its relevance in ERA5 (`pulse`): the MERRA-2 onsets with such a week in the PULSE_DAYS days before
+against the quiet windows (build_ssw_checklist's rule) with one, one-sided binomial, and how often an onset followed
+within PULSE_DAYS days of such a week.
+
     python ssw35_skill.py --gefs DIR --strat reference/strat_history.nc [--vt DIR] --out reference/ssw35_skill.json
 """
 
@@ -45,6 +57,10 @@ POOL = 15  # days either side of a start's day of year
 NBOOT = 5000
 ALPHA = 0.05
 FLUX_Z = 0.5  # a heat-flux week: build_ssw_checklist.THRESHOLDS['flux'] (sd above the ERA5 normal)
+LARGE_Z = 1.0  # a large pulse: a 7-day mean in about the top tenth of November-March weeks (ERA5 1991-2020: +1.02 sd)
+PULSE_DAYS = 21  # a large pulse in the 21 days before a past warming's onset
+CALM = (60, 30)  # build_ssw_checklist's quiet windows: no onset within 60 days before or 30 after
+WEAK_Q = 1 / 3  # a weak-vortex week: the week's mean 10 hPa wind in the lowest third for the time of year
 
 
 def load(d: Path) -> tuple[pd.DatetimeIndex, np.ndarray, np.ndarray]:
@@ -162,15 +178,48 @@ def scores(p: np.ndarray, o: np.ndarray, c: np.ndarray, win: np.ndarray, rng) ->
     return bss(p, o, c, win, rng) | {"roc": roc_area(p, o, win, rng), "recalibrated": recalibrated(p, o, c, win, rng)}
 
 
-def reversal_skill(gefs: Path, strat: Path, rng) -> dict:
-    """The first-reversal counts, drift-corrected (as on the page) and raw, week by week."""
-    init, u, lead = load(gefs)
+def merra(strat: Path) -> tuple[pd.Series, np.ndarray]:
+    """MERRA-2's daily u(60N, 10 hPa) and its 1991-2020 normal (365,) by common-year day, 31-day running mean."""
     with xr.open_dataset(strat) as ds:
         obs = ds["u10"].to_series().astype(float)
     obs.index = pd.DatetimeIndex(obs.index).normalize()
     base = obs["1991":"2020"]
     norm = pd.Series(base.values).groupby(cday(base.index.values)).mean().reindex(range(1, 366)).values
-    norm = np.convolve(np.r_[norm[-15:], norm, norm[:15]], np.ones(31) / 31, "valid")  # (365,) by common-year day
+    return obs, np.convolve(np.r_[norm[-15:], norm, norm[:15]], np.ones(31) / 31, "valid")
+
+
+def weak_threshold(obs: pd.Series, norm: np.ndarray) -> np.ndarray:
+    """(365,) the WEAK_Q quantile of MERRA-2's 1991-2020 7-day mean anomalies, by the common-year day of the week's
+    middle, pooled over POOL days either side."""
+    base = obs["1991":"2020"]
+    a7 = (base - norm[cday(base.index.values) - 1]).rolling(7, center=True).mean().dropna()
+    d = cday(a7.index.values)
+    out = np.empty(365)
+    for k in range(1, 366):
+        dd = np.abs(d - k)
+        out[k - 1] = np.quantile(a7.values[np.minimum(dd, 365 - dd) <= POOL], WEAK_Q)
+    return out
+
+
+def msss(f: np.ndarray, o: np.ndarray, win: np.ndarray, rng) -> dict:
+    """Mean-squared-error skill of the anomaly f against the normal (a zero anomaly), with its winter-block bootstrap."""
+    ws = np.unique(win)
+    ef = np.array([((f - o) ** 2)[win == w].sum() for w in ws])
+    ec = np.array([(o**2)[win == w].sum() for w in ws])
+    k = rng.integers(0, len(ws), (NBOOT, len(ws)))
+    boot = 1 - ef[k].sum(1) / ec[k].sum(1)
+    lo, hi = np.percentile(boot, [2.5, 97.5])
+    return {
+        "msss": round(float(1 - ef.sum() / ec.sum()), 3),
+        "ci95": [round(float(lo), 3), round(float(hi), 3)],
+        "p": round(float((boot <= 0).mean()), 4),
+    }
+
+
+def reversal_skill(gefs: Path, strat: Path, rng) -> dict:
+    """The first-reversal counts, drift-corrected (as on the page) and raw, week by week."""
+    init, u, lead = load(gefs)
+    obs, norm = merra(strat)
 
     valid = [pd.DatetimeIndex(init[i] + pd.to_timedelta(lead, "D")) for i in range(len(init))]
     O = np.array([obs.reindex(v).values for v in valid])  # (start, lead)
@@ -212,7 +261,53 @@ def reversal_skill(gefs: Path, strat: Path, rng) -> dict:
     return out
 
 
-def heat_skill(vt: Path, era5: Path, clim: Path, rng) -> dict:
+def vortex_skill(gefs: Path, strat: Path, rng) -> dict:
+    """The week's mean 10 hPa wind: the members' mean anomaly and the chance of a weak-vortex week, drift-corrected as on
+    the page (each member less the other winters' members' mean at that lead and time of year)."""
+    init, u, lead = load(gefs)
+    obs, norm = merra(strat)
+    thr = weak_threshold(obs, norm)
+    valid = [pd.DatetimeIndex(init[i] + pd.to_timedelta(lead, "D")) for i in range(len(init))]
+    O = np.array([obs.reindex(v).values for v in valid])
+    keep = np.isfinite(O).all(1) & np.isfinite(u).all((1, 2)) & winter_starts(init)
+    init, u, O, valid = init[keep], u[keep], O[keep], [v for v, k in zip(valid, keep) if k]
+    win, doy = winter_of(init), cday(init.values)
+    nv = np.array([norm[cday(v.values) - 1] for v in valid])  # (start, lead)
+    em = u.mean(1)
+    A = u - np.array([em[pooled(doy, win, i)].mean(0) for i in range(len(init))])[:, None]  # (start, member, lead)
+    R = u - nv[:, None]  # raw anomaly, the drift left in
+    OA = O - nv
+    out = {"winters": f"{win.min()}-{win.max() + 1}", "weak_quantile": round(WEAK_Q, 4),
+           "threshold": [round(float(x), 2) for x in thr], "weeks": {}}  # fmt: skip
+    for w0, w1 in WEEKS:
+        sl = slice(w0 - lead[0], w1 - lead[0] + 1)
+        fa, ra, oa = A[:, :, sl].mean(-1), R[:, :, sl].mean(-1), OA[:, sl].mean(-1)
+        mid = np.array([cday(v[sl].values)[len(v[sl]) // 2] for v in valid])
+        t = thr[mid - 1]
+        p, ob = (fa <= t[:, None]).mean(1), (oa <= t).astype(float)
+        c = np.array([ob[pooled(doy, win, i)].mean() for i in range(len(init))])
+        row = {
+            "mean": msss(fa.mean(1), oa, win, rng) | {"acc": acc(fa.mean(1), oa, win, rng)},
+            "mean_no_drift": msss(ra.mean(1), oa, win, rng),
+            "weak": scores(p, ob, c, win, rng),
+            "obs_sd": round(float(oa.std()), 2),
+        }
+        m, wk = row["mean"], row["weak"]["recalibrated"]
+        row["passes"] = bool(m["msss"] > 0 and m["p"] < ALPHA and m["ci95"][0] > 0)
+        row["chance"] = bool(wk["bss"] > 0 and wk["p"] < ALPHA and wk["ci95"][0] > 0)
+        out["weeks"][f"{w0}-{w1}"] = row
+        print(
+            f"vortex days {w0:2d}-{w1:2d}: mean anomaly MSSS {m['msss']:+.3f} [{m['ci95'][0]:+.3f}, {m['ci95'][1]:+.3f}]"
+            f" p {m['p']:.4f}, r {m['acc']['r']:+.2f} (no drift correction {row['mean_no_drift']['msss']:+.3f});"
+            f" weak week {row['weak']['events']} of {row['weak']['starts']}: BSS {row['weak']['bss']:+.3f}"
+            f" p {row['weak']['p']:.4f}, ROC {row['weak']['roc']['auc']:.3f}, recalibrated {wk['bss']:+.3f}"
+            f" [{wk['ci95'][0]:+.3f}, {wk['ci95'][1]:+.3f}] p {wk['p']:.4f} -> passes {row['passes']}, chance {row['chance']}",
+            flush=True,
+        )
+    return out
+
+
+def heat_skill(vt: Path, era5: Path, clim: Path, events: Path, rng) -> dict:
     """The weekly 100 hPa heat flux: the members with a heat-flux week (the checklist's 7-day mean of at least FLUX_Z
     standard deviations above the ERA5 normal) scored as a probability, and the ensemble mean's weekly strength scored
     by its correlation with ERA5's. Raw, and with the lead-dependent mean error of the other winters' starts within
@@ -238,7 +333,8 @@ def heat_skill(vt: Path, era5: Path, clim: Path, rng) -> dict:
     keep = np.isfinite(O).all(1) & np.isfinite(Z).all((1, 2)) & winter_starts(init)
     init, Z, O = init[keep], Z[keep], O[keep]
     win, doy = winter_of(init), cday(init.values)
-    out = {"winters": f"{win.min()}-{win.max() + 1}", "threshold_sd": FLUX_Z, "weeks": {}}
+    out = {"winters": f"{win.min()}-{win.max() + 1}", "threshold_sd": FLUX_Z, "large_sd": LARGE_Z, "weeks": {}}
+    out["pulse"] = pulse_relevance((x - mu[doy366(x.index.values)]) / sd[doy366(x.index.values)], events)
     for kind in ("corrected", "raw"):
         Zk = Z
         if kind == "corrected":
@@ -252,6 +348,14 @@ def heat_skill(vt: Path, era5: Path, clim: Path, rng) -> dict:
             row = out["weeks"].setdefault(f"{w0}-{w1}", {})
             row[kind] = scores(p, ob, c, win, rng) | {"acc": acc(zm.mean(1), zo, win, rng)}
             if kind == "raw":
+                pl, ol = (zm >= LARGE_Z).mean(1), (zo >= LARGE_Z).astype(float)
+                cl = np.array([ol[pooled(doy, win, i)].mean() for i in range(len(init))])
+                lg = row["large"] = scores(pl, ol, cl, win, rng)
+                lg["discriminates"] = bool(
+                    lg["roc"]["auc"] > 0.5 and lg["roc"]["p"] < ALPHA and lg["roc"]["ci95"][0] > 0.5
+                )
+                lr = lg["recalibrated"]
+                lg["chance"] = bool(lr["bss"] > 0 and lr["p"] < ALPHA and lr["ci95"][0] > 0)
                 r, a = row["corrected"], row["corrected"]["acc"]
                 row["passes"] = bool(r["bss"] > 0 and r["p"] < ALPHA)
                 rr = row["raw"]["recalibrated"]  # the page counts the members as they come: its chance is this fit's
@@ -262,9 +366,54 @@ def heat_skill(vt: Path, era5: Path, clim: Path, rng) -> dict:
                     f" (raw {row['raw']['bss']:+.3f}); ROC area {r['roc']['auc']:.3f} p {r['roc']['p']:.4f};"
                     f" recalibrated BSS {r['recalibrated']['bss']:+.3f} p {r['recalibrated']['p']:.4f};"
                     f" ensemble-mean strength r {a['r']:+.2f}"
-                    f" [{a['ci95'][0]:+.2f}, {a['ci95'][1]:+.2f}] p {a['p']:.4f} (raw {row['raw']['acc']['r']:+.2f})",
+                    f" [{a['ci95'][0]:+.2f}, {a['ci95'][1]:+.2f}] p {a['p']:.4f} (raw {row['raw']['acc']['r']:+.2f});"
+                    f" large pulse {lg['events']} weeks: BSS {lg['bss']:+.3f} p {lg['p']:.4f}, ROC {lg['roc']['auc']:.3f}"
+                    f" [{lg['roc']['ci95'][0]:.3f}, {lg['roc']['ci95'][1]:.3f}], recalibrated {lr['bss']:+.3f} p {lr['p']:.4f}",
                     flush=True,
                 )
+    return out
+
+
+def pulse_relevance(z: pd.Series, events: Path) -> dict:
+    """Large pulses (7-day mean flux z >= LARGE_Z) before the MERRA-2 onsets against the quiet windows, and onsets after
+    them. z: ERA5's daily standardised 100 hPa flux."""
+    from scipy import stats
+
+    ev = json.loads(events.read_text())
+    onsets = sorted(pd.Timestamp(t) for w in ev["winters"] for t in w["ssw"])
+    z7 = z.asfreq("D").rolling(7).mean()  # the week ending on the day
+    first = z7.dropna().index[0] + pd.Timedelta(days=PULSE_DAYS)
+
+    def had(end):
+        return bool(z7.loc[end - pd.Timedelta(days=PULSE_DAYS) : end - pd.Timedelta(days=1)].max() >= LARGE_Z)
+
+    used = [e for e in onsets if e >= first]
+    days = z7.dropna().index
+    quiet = days[(days >= first) & np.isin(days.month, (11, 12, 1, 2, 3))]
+    for e in onsets:
+        quiet = quiet[~((quiet > e - pd.Timedelta(days=CALM[0])) & (quiet < e + pd.Timedelta(days=CALM[1])))]
+    hits, rate = sum(had(e) for e in used), float(np.mean([had(q) for q in quiet]))
+    wk = z7[np.isin(z7.index.month, (11, 12, 1, 2, 3))].dropna()
+    after = np.array([any(t < e <= t + pd.Timedelta(days=PULSE_DAYS) for e in onsets) for t in wk.index])
+    big = wk.values >= LARGE_Z
+    base = wk["1991":"2020"]
+    out = {
+        "onsets": len(used),
+        "hits": int(hits),
+        "quiet": round(rate, 3),
+        "p": float(f"{stats.binomtest(int(hits), len(used), rate, alternative='greater').pvalue:.3g}"),
+        "onset_after": round(float(after[big].mean()), 3),
+        "onset_after_otherwise": round(float(after[~big].mean()), 3),
+        "share_of_weeks": round(float((base.values >= LARGE_Z).mean()), 3),
+    }
+    out["passes"] = out["p"] < ALPHA
+    print(
+        f"large pulse (7-day mean >= {LARGE_Z} sd, {out['share_of_weeks']:.0%} of Nov-Mar weeks 1991-2020):"
+        f" {hits}/{len(used)} onsets had one in the {PULSE_DAYS} days before vs {rate:.0%} of quiet windows,"
+        f" p {out['p']:.2g}; an onset within {PULSE_DAYS} days after one {out['onset_after']:.0%}"
+        f" ({out['onset_after_otherwise']:.0%} otherwise)",
+        flush=True,
+    )
     return out
 
 
@@ -292,13 +441,15 @@ def main(argv=None) -> int:
     ap.add_argument("--vt", type=Path, help="directory of GEFSv12vt_*.npz extracts (100 hPa heat flux)")
     ap.add_argument("--era5-vt", type=Path, default=HERE / "reference" / "vt100_era5.nc")
     ap.add_argument("--vt-clim", type=Path, default=HERE / "reference" / "vt100_clim.nc")
+    ap.add_argument("--events", type=Path, default=HERE / "reference" / "strat_history_events.json")
     ap.add_argument("--out", type=Path)
     a = ap.parse_args(argv)
     rng = np.random.default_rng(20261126)
     out = {"source": "GEFSv12 reforecast 00Z Wednesdays, 11 members; MERRA-2 u(60N, 10 hPa); ERA5 100 hPa [v'T']"}
     out["reversal"] = reversal_skill(a.gefs, a.strat, rng)
+    out["vortex"] = vortex_skill(a.gefs, a.strat, rng)
     if a.vt:
-        out["heat_flux"] = heat_skill(a.vt, a.era5_vt, a.vt_clim, rng)
+        out["heat_flux"] = heat_skill(a.vt, a.era5_vt, a.vt_clim, a.events, rng)
     if a.out:
         a.out.write_text(json.dumps(out, indent=1))
         print(f"wrote {a.out}")

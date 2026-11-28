@@ -4,7 +4,8 @@ name: Weeks 3-5 SSW index skill (GEFSv12 reforecast)
 #   reversal   the drift-corrected members' first easterly day of u(60N, 10 hPa), week by week, against MERRA-2; the
 #              reforecast's daily u by latitude comes from the extracts an eddy-feedback-gefs.yml run keeps as
 #              artifacts (90 days), so nothing is fetched for it
-#   heat flux  the members with a heat-flux week and the ensemble mean's weekly strength against ERA5; the 100 hPa
+#   vortex     the week's mean drift-corrected u(60N, 10 hPa) (members' mean and the chance of a weak-vortex week)
+#   heat flux  the members with a heat-flux week or a large pulse and the ensemble mean's weekly strength against ERA5; the 100 hPa
 #              [v'T'] of the same runs is reduced here, one winter per job (scripts/strat/gefs_vt100_extract.py,
 #              v and T at 100 hPa byte-ranged from NOAA's public bucket), or taken from an earlier run's artifacts
 # Commits scripts/strat/reference/ssw35_skill.json. Dispatch only; `inits` runs the reduction on those inits alone (a
@@ -123,7 +124,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - run: pip install --quiet numpy pandas xarray netCDF4 "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
+      - run: pip install --quiet numpy pandas scipy xarray netCDF4 "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: The reforecast extracts
         env:
           GH_TOKEN: ${{ github.token }}
