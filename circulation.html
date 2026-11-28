@@ -498,7 +498,7 @@ window.STAGE = {
                                   : a === "ext" ? {label: "Show", items: [["tracker","Tracker"],["drivers","What favours it"],["before","Before an onset (ERA5)"]]}
                                   : a === "phase" ? {label: "Show", items: [["diagram","Phase diagram"],["implied","What the forecast implies"],["lag0","What each phase brings"],["lag3_7","… 3–7 days later"]]}
                                   : a === "branches" ? {label: "Show", items: [["loop","Maps by lead (loop)"],["xsec","Cross-section"],["events","Superposition events by region"]]} : null; },
-          c: function (a, b) { return (a === "maps" || a === "axis" || (a === "phase" && (b === "diagram" || b === "implied")) || (a === "ext" && b !== "before")) ? {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]} : null; },
+          c: function (a, b) { return (a === "maps" || a === "axis" || (a === "phase" && (b === "diagram" || b === "implied")) || (a === "ext" && b !== "before")) ? {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]].concat(a === "phase" && b === "diagram" ? [["gefs","GEFS, week 3"]] : [])} : null; },
           frame: function (a, b, c) { return a === "maps" && b === "loop" ? "sst_anim.html?embed=1&manifest=pacjet_" + c + "_manifest.json&region=pacjet_" + c
                                        : a === "branches" && b === "loop" ? "sst_anim.html?embed=1&manifest=jetbr_ifs_manifest.json&region=jetbr_ifs" : null; },
           ratio: function () { return "1170/870"; },
