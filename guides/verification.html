@@ -349,8 +349,11 @@ note under the chart names the observations and the runs.</p>
 <p>One variable's bias, RMSE or RMSE against a reference by lead, a panel for each region; the buttons choose the
 regions. The single runs are One variable's numbers, to day 10 against the IFS control. The ensemble means go to day
 15, at 00Z of each day, against the IFS-ENS mean: each ensemble's mean over its members is scored as one forecast, its
-RMSE and bias pooled over every observation and run as the single runs' are. A vector wind has no bias. A marker of the
-bias or the percentage is filled where its test passes a 10% false-discovery rate over all the panels together; the
+RMSE and bias pooled over every observation and run as the single runs' are. A lead whose runs have not all joined the
+database yet, holding under half the usual pairs, is left off, so a short window can stop a day or two before day 15.
+The ensembles also give their CRPS, their CRPS against IFS-ENS and their spread over the error of the mean, the numbers
+of Error and spread, region by region. An ensemble's vector wind has no bias. A marker of the
+bias or a percentage is filled where its test passes a 10% false-discovery rate over all the panels together; the
 intervals are left to One variable, where one region has the room for them.</p>
 </section>
 
@@ -572,7 +575,8 @@ each observation falls among the members: flat when the ensemble is calibrated, 
 <p class="open"><a href="/verification.html#ensrel">Open this figure</a></p>
 <p>Reliability compares the share of members forecasting an event with how often it happened, for one event (rain
 at gauges or 10&nbsp;m wind, by region) and threshold, in three panels for days 1&ndash;3, 4&ndash;7 and 8&ndash;15. Each
-panel heads its curves with every ensemble's Brier skill score against the sample's own frequency, given where its
+panel heads its curves with every ensemble's Brier skill score against the sample's own frequency (the two scored on
+the same runs' events, run by run), given where its
 test against no skill passes a 10% false-discovery rate over the chart and as a dash where it does not; a reliable
 ensemble lies on the diagonal. A curve is drawn once the sample
 holds 30 events and 30 non-events, each of its points 30 cases, and a point where the event never came, or always did,

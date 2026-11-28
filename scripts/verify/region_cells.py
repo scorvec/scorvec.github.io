@@ -114,7 +114,7 @@ def write_var(t: pd.DataFrame, kind: str, var: str, models: list[str], runs: int
         F.dump(body, out / f"region_{kind}_{var}_{tl // 1000}_{tl % 1000}.json")
         tiles.append(f"{tl // 1000}_{tl % 1000}")
     day1 = n[0]
-    stations = np.median(np.where(day1.sum(1, keepdims=True) > 0, day1, np.nan), axis=0)
+    stations = np.nanmedian(np.where(day1.sum(1, keepdims=True) > 0, day1, np.nan), axis=0)
     unit, single, means = VARS[var]
     return {
         "label": single if kind == "single" else means,

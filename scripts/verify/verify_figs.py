@@ -180,6 +180,14 @@ def ci(x: np.ndarray, rho: float, level: float = 0.95) -> tuple[float, float, fl
     return float(x.mean()), float(x.mean() - h), float(x.mean() + h)
 
 
+def mean_p(x: np.ndarray, rho: float) -> float:
+    """The two-sided p value of the test behind ``ci``'s interval, of a mean of zero."""
+    x = x[np.isfinite(x)]
+    if len(x) < 3 or not (se := x.std(ddof=1) / np.sqrt(n_eff(len(x), rho))) > 0:
+        return float("nan")
+    return float(2 * stats.t.sf(abs(x.mean()) / se, len(x) - 1))
+
+
 def ratio_resid(num: np.ndarray, den: np.ndarray) -> np.ndarray:
     """Each run's residual num - R den from a pooled score R = sum(num) / sum(den) (the runs both have)."""
     ok = np.isfinite(num) & np.isfinite(den) & (den > 0)
@@ -314,9 +322,11 @@ def series_data(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp) -> 
 def lead_data(wide: pd.DataFrame, models: list[str]) -> dict:
     """The window's mean anomaly correlation by lead with its interval (through Fisher's z), and each model's paired
     difference from the IFS control (the single runs) or the IFS-ENS mean (the ensemble means), with its interval and
-    whether its paired test passes Benjamini-Hochberg at FDR_Q over every model and lead of the figure (``wide`` holds
-    one kind of model: acc_figs)."""
-    from mverify.significance import fdr, paired_test
+    whether the test behind that interval passes Benjamini-Hochberg at FDR_Q over every model and lead of the figure
+    (``wide`` holds one kind of model: acc_figs). A difference's autocorrelation is its own, pooled over the kind's
+    models at the lead: the weather two models share, which carries from run to run in each one's score, cancels in
+    it."""
+    from mverify.significance import fdr
 
     z = np.arctanh(wide.clip(-0.9999, 0.9999))
     rho = {lead: pooled_rho(z[c].to_numpy() for c in z.columns if c[1] == lead) for lead in {c[1] for c in z.columns}}
@@ -329,11 +339,11 @@ def lead_data(wide: pd.DataFrame, models: list[str]) -> dict:
              "means": ("IFS-ENS", [m for m in models if m in CENTRE and m != "IFS-ENS"])}  # fmt: skip
     rows = []
     for kind, (ref, ms) in kinds.items():
-        for m in ms if ref in models else []:
-            for lead in leads[m]:
-                if (ref, lead) in wide.columns:
-                    d = (wide[(m, lead)] - wide[(ref, lead)]).to_numpy()
-                    rows.append((kind, m, lead, *ci(d, rho[lead]), paired_test(d[np.isfinite(d)])))
+        gap = {(m, lead): (wide[(m, lead)] - wide[(ref, lead)]).to_numpy()
+               for m in (ms if ref in models else []) for lead in leads[m] if (ref, lead) in wide.columns}  # fmt: skip
+        for lead in sorted({lead for _, lead in gap}):
+            r = pooled_rho(d for (_, at), d in gap.items() if at == lead)
+            rows += [(kind, m, lead, *ci(d, r), mean_p(d, r)) for (m, at), d in gap.items() if at == lead]
     sig = fdr(np.array([row[-1] for row in rows]), FDR_Q) if rows else []
     diff = {kind: {"ref": ref, "models": {}} for kind, (ref, _) in kinds.items()}
     for (kind, m, lead, c, lo, hi, _p), s in zip(rows, sig, strict=True):
@@ -1255,7 +1265,8 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
     """One variable, threshold and region's reliability for each lead group: the observed frequency of the event in
     each forecast probability bin of MIN_BIN cases or more, with its 95 % interval, against the bin's mean forecast
     probability, and the Brier skill score against the sample's base rate with its interval and the p value of a skill
-    of zero (the Brier score a ratio over the runs, ``ratio_ci`` and ``ratio_p`` against the base rate's score). A
+    of zero (the Brier score a ratio over the runs to the base rate's score on the same runs' events, ``ratio_ci`` and
+    ``ratio_p`` on its logarithm: a run with more events scores higher for both, which cancels in the ratio). A
     model's curve needs MIN_BIN events and MIN_BIN non-events in the group: from fewer, the frequencies and the skill
     score are a few stations' luck. A bin where the event never came, or always did, has no spread between runs to take
     an interval from, so it has none."""
@@ -1269,12 +1280,12 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
             n, o = gm["n"].sum(), gm["o"].sum()
             if min(o, n - o) < MIN_BIN:
                 continue
-            clim = o / n * (1 - o / n)  # the Brier score of always forecasting the base rate
-            per_run = gm.groupby("init")[["bs", "n"]].sum()
-            bs, bs_lo, bs_hi = ratio_ci(
-                per_run["bs"].to_numpy(float), per_run["n"].to_numpy(float), group_rho(rho, a, b)
-            )
-            bss_p = ratio_p(per_run["bs"].to_numpy(float), per_run["n"].to_numpy(float), group_rho(rho, a, b), clim)
+            per_run = gm.groupby("init")[["bs", "n", "o"]].sum()
+            base = o / n  # always forecasting the base rate: its Brier score on each run's events
+            ref = per_run["o"] * (1 - base) ** 2 + (per_run["n"] - per_run["o"]) * base**2
+            score = per_run["bs"].to_numpy(float), ref.to_numpy(float), group_rho(rho, a, b)
+            ratio, r_lo, r_hi = ratio_ci(*score, log=True)
+            bss_p = ratio_p(*score, 1.0, log=True)
             pts = []
             for _, d in gm.groupby("bin"):
                 if d["n"].sum() >= MIN_BIN:
@@ -1287,8 +1298,8 @@ def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
                     pts.append((per["p"].sum() / per["n"].sum(), f, lo, hi))
             if pts:
                 p, f, lo, hi = zip(*pts, strict=True)
-                out.setdefault(label, {})[m] = {"bss": num(1 - bs / clim, 3), "bss_lo": num(1 - bs_hi / clim, 3),
-                                                "bss_hi": num(1 - bs_lo / clim, 3), "bss_p": num(bss_p, 3),
+                out.setdefault(label, {})[m] = {"bss": num(1 - ratio, 3), "bss_lo": num(1 - r_hi, 3),
+                                                "bss_hi": num(1 - r_lo, 3), "bss_p": num(bss_p, 3),
                                                 "p": nums(p), "o": nums(f), "lo": nums(lo), "hi": nums(hi)}  # fmt: skip
     return out
 

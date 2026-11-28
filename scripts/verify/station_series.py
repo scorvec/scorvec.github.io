@@ -123,7 +123,11 @@ def main() -> None:
     if a.list:
         print(*wanted(set(a.have.read_text().split()), series, today))
         return
-    series = update(series, sorted(a.derived.glob("sfc_*.parquet")), today)
+    files = sorted(a.derived.glob("sfc_*.parquet"))
+    if series is None and not files:
+        print("station series: no runs yet", flush=True)
+        return
+    series = update(series, files, today)
     series.to_parquet(a.series, compression="zstd")
     print(f"station series: {series['station_id'].nunique()} stations, {len(runs_of(series))} runs, "
           f"{tiles(series, a.out)} tiles", flush=True)  # fmt: skip

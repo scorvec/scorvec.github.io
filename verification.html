@@ -1436,13 +1436,15 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     for (const [m, sc] of Object.entries(reg.models)) models[m] = Object.fromEntries(Object.entries(sc).map(([k, a]) => [k, keep.map(i => a[i])]));
     return { us: keep.map(i => reg.leads[i] / 24), models };
   }
-  const STAT = { rmse: ["rmse", "rlo", "rhi"], pct: ["pct", "plo", "phi", "pp"], bias: ["bias", "blo", "bhi", "bp"] };
+  const STAT = { rmse: ["rmse", "rlo", "rhi"], pct: ["pct", "plo", "phi", "pp"], bias: ["bias", "blo", "bhi", "bp"],
+    crps: ["crps"], cpct: ["cpct", null, null, "cpp"], spread: ["spread"] };
+  const FLOORED = ["rmse", "crps"];   // scores drawn from zero, with no line to compare against
   const scored = (rows, what) => Object.values(rows.models).some(sc => (sc[what] || []).some(v => v != null));
   // one score against lead: past 16 leads the lines alone, without markers and whiskers
   function leadPanel(rows, what, title, more) {
     const dense = rows.us.length > 16;
-    return { title, u: dayAxis(rows.us), v: what === "rmse" ? { floor: 0 } : {}, dodge: dense ? 0 : 5, markers: !dense, ...more,
-      refs: what === "rmse" ? [] : [{ v: 0 }],
+    return { title, u: dayAxis(rows.us), v: FLOORED.includes(what) ? { floor: 0 } : {}, dodge: dense ? 0 : 5, markers: !dense, ...more,
+      refs: FLOORED.includes(what) ? [] : [what === "spread" ? { v: 1, label: "spread matches error" } : { v: 0 }],
       series: ordered(Object.keys(rows.models)).filter(m => rows.models[m][what])
         .map(m => ({ ...who(m), pts: points(rows.us, rows.models[m], dense ? [what, null, null, STAT[what][3]] : STAT[what]) })) };
   }
@@ -1484,17 +1486,18 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     };
     $("lead-card").hidden = !lvars.length;
     // the same scores with a panel a region: one variable's bias, RMSE or RMSE against the reference by lead, for the
-    // single runs or (from the ensembles' lead files, to day 15) the ensemble means; the buttons pick the regions
+    // single runs or (from the ensembles' lead files, to day 15) the ensemble means, and for the ensembles their CRPS
+    // and their spread over the error of the mean; the buttons pick the regions
     const en = ((figs.ensembles || {})[W === "10" ? "30" : W] || {}), ensLead = (en.data || {}).lead || {};
     const bk = $("rb-kind"), bv = $("rb-var"), bs = $("rb-score"), bl = $("rb-leads");
     const REGIONS = ["Global", "NH 20-90N", "Tropics 20S-20N", "SH 20-90S", "North America", "CONUS", "Europe"];
     const ENS_NAME = { ws10: ["10 m wind speed", "m s-1"], wind10: ["10 m vector wind", "m s-1"] };
     const KINDS = { single: "Single runs", means: "Ensemble means" };
     const fileOf = () => (bk.value === "means" ? ensLead : leadFile);
-    // an ensemble's lead file as a single run's: its mean's scores under the same names
+    // an ensemble's lead file as a single run's: its mean's scores under the same names, the ensemble's own beside
     const asSingle = reg => ({ leads: reg.leads, models: Object.fromEntries(Object.entries(reg.models).map(([m, sc]) =>
-      [m, Object.fromEntries(Object.entries({ rmse: sc.rmse || reg.leads.map(() => null), bias: sc.bias, bp: sc.bp, pct: sc.mpct, pp: sc.mpp })
-        .filter(([, a]) => a))])) });
+      [m, Object.fromEntries(Object.entries({ rmse: sc.rmse || reg.leads.map(() => null), bias: sc.bias, bp: sc.bp, pct: sc.mpct, pp: sc.mpp,
+        crps: sc.crps, cpct: sc.pct, cpp: sc.pp, spread: sc.ratio }).filter(([, a]) => a))])) });
     fill(bk, Object.keys(KINDS).filter(k => Object.keys(k === "means" ? ensLead : leadFile).length), k => KINDS[k]);
     fill(bl, Object.keys(LEADS), k => LEADS[k]);
     let regionsOn = () => REGIONS, regionsFor = "";
@@ -1503,7 +1506,9 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       const vars = Object.keys(fileOf()).sort((x, y) => rank(x) - rank(y));
       fill(bv, vars, v => ENS_NAME[v]?.[0] && means ? ENS_NAME[v][0] : named[v]?.label || ENS_NAME[v]?.[0] || v, true);
       if (!bv.dataset.set) { bv.dataset.set = "1"; if (vars.includes("t2m")) bv.value = "t2m"; }
-      fill(bs, ["bias", "rmse", "pct"], k => ({ bias: "Bias", rmse: "RMSE", pct: `RMSE against ${means ? "IFS-ENS" : "IFS control"}` })[k], true);
+      // an ensemble's vector wind has no bias: its error is a length
+      fill(bs, [...(means && bv.value.startsWith("wind") ? [] : ["bias"]), "rmse", "pct", ...(means ? ["crps", "cpct", "spread"] : [])], k => ({ bias: "Bias", rmse: "RMSE",
+        pct: `RMSE against ${means ? "IFS-ENS" : "IFS control"}`, crps: "CRPS", cpct: "CRPS against IFS-ENS", spread: "Spread over error" })[k], true);
       ctl("rb-leads").hidden = means;   // an ensemble is scored at 00 UTC of each day
       chart("rb-fig", [fileOf()[bv.value]], d => {
         const what = bs.value, u = unit(d.unit || named[bv.value]?.unit || ENS_NAME[bv.value]?.[1] || ""), panels = [], models = new Set();
@@ -1523,11 +1528,12 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         }
         if (!panels.length) return null;
         const name = bv.selectedOptions[0]?.text || bv.value, w = means ? en.window : sc.window;
-        $("rb-note").textContent = `${what === "bias" ? `Bias, forecast less observed (${u})` : what === "rmse" ? `RMSE (${u})` : `RMSE against ${ref} (%)`}` +
-          `${means ? ", the ensemble means" : ""}: ${name}${named[bv.value]?.truth ? ` against ${named[bv.value].truth}` : ""}; ` +
+        const said = { bias: `Bias, forecast less observed (${u})`, rmse: `RMSE (${u})`, pct: `RMSE against ${ref} (%)`, crps: `CRPS (${u})`,
+          cpct: "CRPS against IFS-ENS (%)", spread: "Spread over the error of the mean" }[what];
+        $("rb-note").textContent = `${said}${means && ["bias", "rmse", "pct"].includes(what) ? ", the ensemble means" : ""}: ${name}${named[bv.value]?.truth ? ` against ${named[bv.value].truth}` : ""}; ` +
           `the ${w.runs} runs from ${ymd(w.first)} to ${ymd(w.last)}.`;
         return { label: `${bs.selectedOptions[0].text}, ${name}, by region`, panels, cols: Math.min(4, panels.length), minWidth: 250,
-          height: panels.length > 2 ? 250 : 330, legend: ordered(models).map(who), keys: what === "rmse" ? [] : [zeroKey()] };
+          height: panels.length > 2 ? 250 : 330, legend: ordered(models).map(who), keys: STAT[what][3] ? [zeroKey()] : [] };
       });
     };
     [bk, bv, bs, bl].forEach(el => el.addEventListener("change", byRegion));
