@@ -2186,7 +2186,7 @@
   var clP = fetch("/assets/models/ensmaps_clusters.json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) { CL = d; });
   Promise.all([clP].concat(MODEL_ORDER.map(function (m) {
     return fetch("/assets/models/ensmaps_" + m + ".json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) {
-      man[m] = d; var x = cycleOf(m); if (x) x.model = m; });
+      man[m] = d; runsOf(m).forEach(function (c) { c.model = m; }); });   // every run on the page: a frame's path names its model
   }))).then(function () {
     if (!cyc()) { var alt = MODEL_ORDER.filter(cycleOf)[0]; if (alt) st.model = alt; }
     var c = cyc();
