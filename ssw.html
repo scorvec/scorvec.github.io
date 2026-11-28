@@ -18,49 +18,46 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=0c5d1a63c9">
 <link rel="stylesheet" href="/assets/outlook.css?v=b84673c691">
+<link rel="stylesheet" href="/assets/stage.css?v=31fdaf94f3">
 <style>
-  /* ssw.html: the days 1-15 sudden-warming summary (scripts/strat/ssw_summary.py -> assets/sst/data/ssw_summary.json);
-     page rules on top of /assets/outlook.css. */
+  /* ssw.html: the sudden-warming summary (scripts/strat/ssw_summary.py -> assets/sst/data/ssw_summary.json), one card at a
+     time on the stage viewer; page rules on top of /assets/outlook.css and /assets/stage.css. */
   main { max-width: min(94vw, 1300px); }
-  .chart-stack a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .chart-card a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
   .chart-card-header p { max-width: 110ch; }
   .tblwrap { overflow-x: auto; padding: 0 1.4rem 0.6rem; }
   /* text runs larger and a step heavier than the outlook pages' default */
-  .page-header .eyebrow { font-size: 1rem; font-weight: 500; }
-  .page-header .sub { font-size: 1.2rem; font-weight: 500; color: var(--ink2); }
-  .chip .l { font-size: 0.9rem; }
-  .chip .v { font-size: 1.9rem; }
-  .chip .s { font-size: 0.98rem; font-weight: 500; }
-  .chart-card-header h2 { font-size: 1.45rem; font-weight: 600; }
-  .chart-card-header p { font-size: 1.1rem; line-height: 1.6; font-weight: 500; color: var(--ink2); }
-  .chart-card :is(.chart-sources, .chart-updated) { font-size: 0.95rem; }
-  table.rec { border-collapse: collapse; font-size: 1.05rem; margin: 0.4rem 0 0.6rem; font-variant-numeric: tabular-nums; }
+  .page-header .eyebrow { font-size: 1.08rem; font-weight: 500; }
+  .page-header .sub { font-size: 1.3rem; font-weight: 500; color: var(--ink2); }
+  .chip .l { font-size: 0.95rem; }
+  .chip .v { font-size: 2.1rem; }
+  .chip .s { font-size: 1.05rem; font-weight: 500; }
+  .chart-card-header p { font-size: 1.22rem; line-height: 1.6; font-weight: 500; color: var(--ink2); }
+  .ss-main :is(.chart-sources, .chart-updated) { font-size: 1rem; }
+  table.rec { border-collapse: collapse; font-size: 1.15rem; margin: 0.4rem 0 0.6rem; font-variant-numeric: tabular-nums; }
   table.rec th, table.rec td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
   table.rec th:first-child, table.rec td:first-child { text-align: left; }
   table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
   table.rec td { font-weight: 500; }
-  table.rec td small { display: block; font-size: 0.95rem; color: var(--muted); }
+  table.rec td small { display: block; font-size: 1.02rem; color: var(--muted); }
   /* headers and second lines wrap, so the larger text still fits the card without sideways scrolling */
   table.rec th, table.rec td small { white-space: normal; }
-  .runs-h { margin: 0.6rem 1.4rem 0; font-weight: 600; font-size: 1.1rem; color: var(--ink); }
+  table.rec:not(.check) td:first-child small { white-space: nowrap; }
+  .runs-h { margin: 0.6rem 1.4rem 0; font-weight: 600; font-size: 1.2rem; color: var(--ink); }
   @media (max-width: 600px) { .runs-h { margin: 0.6rem 0.6rem 0; } }
   .img-wrap img { max-height: 92vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
   .img-wrap a { border: 0; }
-  .disc { padding: 0.9rem 1.4rem 0.4rem; }
-  .disc p { font-size: 1.1rem; font-weight: 500; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
-  .disc b { color: var(--ink); font-weight: 600; }
-  @media (max-width: 600px) { .chips .chip .v { font-size: 1.45rem; } .chart-card-header h2 { font-size: 1.28rem; }
-    .chart-card-header p { font-size: 1.05rem; } .tblwrap { padding: 0 0.6rem 0.6rem; } }
+  @media (max-width: 600px) { .chart-card-header p { font-size: 1.1rem; } .tblwrap { padding: 0 0.6rem 0.6rem; } }
   /* a share of members is shaded by its size (heat() below): pale for a few, deep red for most; text inside a shaded
      cell takes the cell's own colour, not the muted grey, which is too faint on the middle shades */
   table.rec td.shade small { color: inherit; }
   table.rec td.hot { color: #fff; }
-  /* the checklist (#checklist): a tick where an ensemble has what most past warmings had, a cross where it has not */
+  /* the checklist (#card-checklist): a tick where an ensemble has what most past warmings had, a cross where it has not */
   table.rec.check td:first-child { white-space: normal; min-width: 14rem; }
   table.rec .ck { font-weight: 700; margin-right: 0.2em; }
   table.rec .ck.no { color: var(--muted); }
-  /* the coupling clock (#clock): the past warmings and each ensemble on one chart, drawn from the summary as SVG */
-  .clock-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0.1rem 1.4rem 0; font-size: 1.05rem; font-weight: 500; color: var(--ink2); }
+  /* the coupling clock (#card-clock): the past warmings and each ensemble on one chart, drawn from the summary as SVG */
+  .clock-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0.1rem 1.4rem 0; font-size: 1.15rem; font-weight: 500; color: var(--ink2); }
   .clock-key span { display: inline-flex; align-items: center; gap: 0.45rem; }
   .clock-key i { display: inline-block; width: 18px; border-top: 2.5px solid; }
   .clock-key i.dot { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #4a4744; }
@@ -79,9 +76,9 @@
   .clock-fig .dot { fill: #4a4744; stroke: #fff; stroke-width: 1.5; outline: none; }
   .clock-fig .dot:focus-visible { stroke: var(--ink); stroke-width: 2.5; }
   .clock-tip { position: absolute; z-index: 2; pointer-events: none; background: #fff; border: 1px solid var(--rule);
-               border-radius: 6px; padding: 0.45rem 0.65rem; font-size: 1rem; line-height: 1.45; color: var(--ink);
-               box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); max-width: 300px; }
-  /* weeks 3-5 (#weeks35): every member's week, the 100 hPa heat flux and the 10 hPa wind, as dots */
+               border-radius: 6px; padding: 0.5rem 0.7rem; font-size: 1.08rem; line-height: 1.45; color: var(--ink);
+               box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); max-width: 320px; }
+  /* weeks 3-5 (#card-weeks35): every member's week, the 100 hPa heat flux and the 10 hPa wind, as dots */
   .clock-fig .mem { fill: #6f87a6; stroke: #fff; stroke-width: 1; outline: none; }
   .clock-fig .mem.hi { fill: #c0392b; }
   .clock-fig .mem:focus-visible { stroke: var(--ink); stroke-width: 2; }
@@ -95,8 +92,8 @@
   .clock-key i.ref2 { width: 22px; border-top: 2px dashed #8a8478; }
   table.rec#t_ext { width: 100%; }
   table.rec#t_ext th:not(:first-child), table.rec#t_ext td:not(:first-child) { text-align: left; white-space: normal; width: 30%; }
-  .w35-more { margin: 0.2rem 0 0.9rem; padding: 0 1.4rem; font-size: 1.05rem; font-weight: 500; color: var(--ink2); }
-  .clock-note { margin: 0.1rem 0 0.5rem; padding: 0 1.4rem; font-size: 1rem; line-height: 1.5; color: var(--muted); }
+  .w35-more { margin: 0.2rem 0 0.9rem; padding: 0 1.4rem; font-size: 1.15rem; font-weight: 500; color: var(--ink2); }
+  .clock-note { margin: 0.1rem 0 0.5rem; padding: 0 1.4rem; font-size: 1.08rem; line-height: 1.5; color: var(--muted); }
   @media (max-width: 600px) { .clock-key, .clock-fig, .clock-note, .w35-more { padding-left: 0.6rem; padding-right: 0.6rem; } }
   /* phones: no sideways scrolling - a model's row becomes a card of label: value lines, and the run-by-run grid shrinks
      to the screen with its headers wrapped */
@@ -113,12 +110,36 @@
     table.rec.cards td:first-child small { display: inline; }
     table.rec.fit { width: 100%; table-layout: fixed; }
     table.rec.fit th, table.rec.fit td { white-space: normal; padding: 0.32rem 0.3rem; }
-    table.rec.fit th { font-size: 0.9rem; }
-    table.rec.fit td small { font-size: 0.88rem; }
+    table.rec.fit th { font-size: 0.95rem; }
+    table.rec.fit td small { font-size: 0.92rem; }
     table.rec#t_ext td:not(:first-child) { display: block; width: auto; }
-    table.rec#t_ext td:not(:first-child)::before { display: block; font-size: 0.95rem; margin-bottom: 0.1rem; }
+    table.rec#t_ext td:not(:first-child)::before { display: block; font-size: 1rem; margin-bottom: 0.1rem; }
     table.rec.check td:first-child { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
     table.rec.check td:first-child small { display: block; }
+  }
+  /* the stage viewer: the rail, the crumb (wide screens) and the picker (phones) name each card, so its own heading is
+     for screen readers only; the card's rows keep their own side padding, and the rail and Methods link read larger */
+  .ss-main .chart-card-header h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ss-main .stage { padding: 0.2rem 0 0.4rem; }
+  .ss-main .stage > .chart-card > .chart-card-header { border-bottom: 0; padding-bottom: 0.4rem; }
+  @media (min-width: 1001px) { .ss-layout { grid-template-columns: clamp(200px, 19vw, 270px) minmax(0, 1fr); } }
+  .crumb .path { font-size: 1.3rem; }
+  .ss-rail .rail-title { font-size: 0.98rem; }
+  .ss-rail .rail-group button[data-p] { font-size: 1.05rem; }
+  .ss-rail .rail-group button small { font-size: 0.92rem; }
+  .ss-main .about--guide > a { font-size: 1.08rem; }
+  .ss-main > .chart-card-footer { padding: 0.6rem 1.4rem 0.9rem; }
+  .ss-main .ss-credits > summary { font-size: 0.95rem; }
+  .stage > #card-vortex .chart-card-header { padding: 0; }
+  .stage > #card-vortex .img-wrap { padding: 0.8rem 1.4rem 0; }
+  @media (min-width: 1001px) and (max-height: 1000px) {
+    .ss-host > .page-header > .sub { font-size: 1.15rem; }
+    .chip .l { font-size: 0.88rem; } .chip .v { font-size: 1.7rem; } .chip .s { font-size: 0.95rem; }
+  }
+  @media (max-width: 1000px) {
+    .ss-host .chips .chip .l { font-size: 0.85rem; } .ss-host .chips .chip .v { font-size: 1.35rem; }
+    .ss-pick-t { font-size: 1.05rem; }
+    table.rec.check td:first-child { min-width: 11rem; }
   }
 </style>
 <script src="/assets/site.js?v=de9fd94074" defer></script>
@@ -304,18 +325,39 @@
     </div>
   </div>
 
-  <div class="chart-stack">
-    <section class="chart-card" id="ssw">
+  <!-- one card at a time on the shared stage viewer (assets/stage.js); the cards below mount whole -->
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Sections"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Data: ECMWF open data (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; NOAA GEFS (AWS Open Data) &middot; ECCC GEPS (MSC Datamart, ECCC Data Servers End-use Licence) &middot; ERA5 (Copernicus Climate Change Service) &middot; MERRA-2 (NASA GMAO) &middot; CMIP6 (Pangeo)</span>
+        <span class="chart-updated"><span data-k="stamp">&ndash;</span></span>
+      </div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <section class="chart-card" id="card-ssw">
       <div class="chart-card-header"><h2>Is a sudden warming forecast?</h2>
         <p data-k="ssw_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec" id="t_ssw"></table></div>
       <p class="runs-h">Run by run: members easterly at 10&nbsp;hPa in each ensemble&rsquo;s last runs, and those meeting the WMO definition</p>
       <div class="tblwrap"><table class="rec" id="t_runs"></table></div>
+    </section>
+
+    <section class="chart-card" id="card-vortex">
+      <div class="chart-card-header"><h2>The vortex, every model</h2></div>
       <div class="img-wrap"><a href="/stratosphere.html#vortex"><img src="/assets/sst/nh_vortex.webp" alt="u at 60N at 10 and 100 hPa and the polar-cap height, every model, days 1-15" loading="lazy"></a></div>
       <div class="img-wrap"><a href="/stratosphere.html#vortex/temp"><img src="/assets/sst/nh_vortex_temp.webp" alt="10 hPa polar-cap temperature anomaly and the pole-minus-60N temperature gradient, every model, days 1-15" loading="lazy"></a></div>
     </section>
 
-    <section class="chart-card" id="weeks35" hidden>
+    <section class="chart-card" id="card-weeks35" hidden>
       <div class="chart-card-header"><h2>Weeks 3&ndash;5 outlook</h2>
         <p data-k="ext_line">&ndash;</p></div>
       <div class="clock-key" id="w35_key"></div>
@@ -324,13 +366,13 @@
       <p class="w35-more">Every member day by day: <a href="/stratosphere.html#vortex35/gefs">GEFS</a> &middot; <a href="/stratosphere.html#vortex35/geps">GEPS</a> &middot; <a href="/stratosphere.html#heatflux35">heat flux</a></p>
     </section>
 
-    <section class="chart-card" id="checklist" hidden>
+    <section class="chart-card" id="card-checklist" hidden>
       <div class="chart-card-header"><h2>What a sudden warming takes</h2>
         <p data-k="check_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec check" id="t_check"></table></div>
     </section>
 
-    <section class="chart-card" id="kind">
+    <section class="chart-card" id="card-kind">
       <div class="chart-card-header"><h2>What kind of event</h2>
         <p data-k="kind_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec" id="t_wave"></table></div>
@@ -338,14 +380,14 @@
       <div class="img-wrap"><a href="/stratosphere.html#heatflux"><img src="/assets/sst/heatflux100_nh.webp" alt="100 hPa eddy heat flux, AIFS-ENS, days 1-15" loading="lazy"></a></div>
     </section>
 
-    <section class="chart-card" id="reflect">
+    <section class="chart-card" id="card-reflect">
       <div class="chart-card-header"><h2>Reflection or absorption</h2>
         <p data-k="ref_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec" id="t_ref"></table></div>
       <div class="img-wrap"><a href="/stratosphere.html#refract"><img src="/assets/sst/refractive_gefs.webp" alt="Refractive index for waves 1 and 2 from GEFS, days 0 to 15" loading="lazy"></a></div>
     </section>
 
-    <section class="chart-card" id="surface">
+    <section class="chart-card" id="card-surface">
       <div class="chart-card-header"><h2>Will it reach the troposphere?</h2>
         <p data-k="sfc_line">&ndash;</p>
         <p id="dw" hidden><span data-k="dw_line"></span> <a href="/stratosphere.html#dwatch">Descent watch</a></p></div>
@@ -353,17 +395,13 @@
       <div class="img-wrap"><a href="/stratosphere.html#descent"><img src="/assets/sst/ssw_imprint.webp" alt="The 10 and 100 hPa polar cap and the SSW surface imprint index, every ensemble" loading="lazy"></a></div>
     </section>
 
-    <section class="chart-card" id="clock" hidden>
+    <section class="chart-card" id="card-clock" hidden>
       <div class="chart-card-header"><h2>When could it reach the surface?</h2>
         <p data-k="clock_line">&ndash;</p></div>
       <div class="clock-key" id="clock_key"></div>
       <div class="clock-fig" id="clock_fig"><div class="clock-tip" id="clock_tip" hidden></div></div>
       <p class="clock-note" id="clock_note" hidden></p>
       <div class="tblwrap"><table class="rec" id="t_clock"></table></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Data: ECMWF open data (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; NOAA GEFS (AWS Open Data) &middot; ECCC GEPS (MSC Datamart, ECCC Data Servers End-use Licence) &middot; ERA5 (Copernicus Climate Change Service) &middot; MERRA-2 (NASA GMAO) &middot; CMIP6 (Pangeo)</span>
-        <span class="chart-updated"><span data-k="stamp">&ndash;</span> &middot; <a href="/guides/ssw.html">Methods</a></span>
-      </div>
     </section>
 
   </div>
@@ -408,11 +446,12 @@
   function drawClock(C, N) {
     var R = C.reference, D = R.definitions, ev = R.events, box = document.getElementById("clock_fig"), tip = document.getElementById("clock_tip");
     var cs = getComputedStyle(box), W = Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    if (!drawClock.ro && window.ResizeObserver) { drawClock.ro = new ResizeObserver(function () { drawClock(C, N); }); drawClock.ro.observe(box); }
     if (W < 200 || W === drawClock.w) return;
     drawClock.w = W;
     var placed = Object.keys(C.models).filter(function (m) { return C.models[m].wind != null; })
       .sort(function (a, b) { return C.models[a].wind - C.models[b].wind; });
-    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 14.5 : 16, row = fs + 4;
+    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 15 : 17.5, row = fs + 4;
     var xs = ev.map(function (e) { return e.wind; }).concat(placed.map(function (m) { return C.models[m].wind; }));
     var x0 = Math.floor(Math.min.apply(null, xs) * 2) / 2 - 0.2, x1 = Math.ceil(Math.max.apply(null, xs) * 2) / 2 + 0.2;
     var L = { l: 56, r: 10, t: 12 + row * placed.length, b: W < 560 ? 40 : 46 };
@@ -480,7 +519,6 @@
       var m = el.getAttribute("data-m"), c = C.models[m];
       hover(el, "<b>" + N[m] + "</b>, run " + c.init + "<br>reversal " + md(c.onset) + "<br>wind " + sg(c.wind, 2) + " sd over " + c.wind_days + " days");
     });
-    if (!drawClock.ro && window.ResizeObserver) { drawClock.ro = new ResizeObserver(function () { drawClock(C, N); }); drawClock.ro.observe(box); }
   }
   // weeks 3-5: one panel per quantity (the 100 hPa heat flux, the 10 hPa wind), the three weeks across, each with a
   // column of dots per ensemble; a dot past the panel's line (a large pulse, a weak-vortex week) is red. Side by side
@@ -488,9 +526,10 @@
   function drawWeeks(E, N, em) {
     var box = document.getElementById("w35_fig"), tip = document.getElementById("w35_tip");
     var cs = getComputedStyle(box), W = Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    if (!drawWeeks.ro && window.ResizeObserver) { drawWeeks.ro = new ResizeObserver(function () { drawWeeks(E, N, em); }); drawWeeks.ro.observe(box); }
     if (W < 200 || W === drawWeeks.w) return;
     drawWeeks.w = W;
-    var P = E.pulse || {}, fs = W < 560 ? 14.5 : 16, r = W < 560 ? 3.6 : 4.2;
+    var P = E.pulse || {}, fs = W < 560 ? 15 : 17.5, r = W < 560 ? 3.8 : 4.4;
     var panels = [];
     if (em.some(function (m) { return E.models[m].flux_z; })) panels.push({ key: "flux_z", title: "100 hPa heat flux, sd from normal",
       hi: function (x) { return P.passes && x >= P.threshold; }, line: function () { return P.passes ? P.threshold : null; }, ref2: function () { return E.flux_rule.passes ? E.flux_rule.threshold : null; },
@@ -561,7 +600,6 @@
       el.addEventListener("mouseenter", show); el.addEventListener("focus", show);
       el.addEventListener("mouseleave", function () { tip.hidden = true; }); el.addEventListener("blur", function () { tip.hidden = true; });
     });
-    if (!drawWeeks.ro && window.ResizeObserver) { drawWeeks.ro = new ResizeObserver(function () { drawWeeks(E, N, em); }); drawWeeks.ro.observe(box); }
   }
   fetch("assets/sst/data/ssw_summary.json", { cache: "no-cache" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (j) {
     var N = j.names, S = j.ssw, W = j.waves, D = j.descent, R = j.reflect, F = j.surface, X = j.reference;
@@ -599,7 +637,7 @@
     // has the lean (GEFS, where its reforecast has skill), the members past each line and GEFS's calibrated chances
     var E = j.extended, em = E ? ["gefs", "geps"].filter(function (m) { return E.models[m]; }) : [];
     if (em.length && j.ssw_season) {
-      document.getElementById("weeks35").hidden = false;
+      document.getElementById("card-weeks35").hidden = false;
       var e0 = E.models[em[0]], P = E.pulse || {};
       var sum = function (a) { return a.reduce(function (x, y) { return x + (y || 0); }, 0); };
       var anyLarge = function (v) {  // members with a large pulse in at least one week
@@ -657,7 +695,7 @@
     var K = j.checklist, KR = K && K.reference;
     var kk = KR ? ["source", "tilt", "flux", "upward", "slowing"].filter(function (k) { return KR.items[k] && KR.items[k].passes; }) : [];
     if (kk.length) {
-      document.getElementById("checklist").hidden = false;
+      document.getElementById("card-checklist").hidden = false;
       var KD = KR.definitions, km = ens.filter(function (m) { return K.models[m]; });
       function thr(k) { return KR.items[k].threshold; }
       var ING = {
@@ -676,8 +714,8 @@
           .concat(km.map(function (m) {
             var x = K.models[m].items[k];
             if (!x || x.value == null) return "–<small>not in this run</small>";
-            return "<span>" + (x.tested ? (x.met ? TICK : CROSS) : "") + (x.share == null ? "" : pct(x.share) + " of members") + "</span>"
-              + "<small>median member " + ING[k][2](x.value) + (x.days < KD.window ? "; " + x.days + " days" + (x.tested ? "" : ", too few to tell") : "") + "</small>";
+            return "<span>" + (x.tested ? (x.met ? TICK : CROSS) : "") + (x.share == null ? "" : pct(x.share)) + "</span>"
+              + "<small>" + (x.share == null ? "" : "of members; ") + "median member " + ING[k][2](x.value) + (x.days < KD.window ? "; " + x.days + " days" + (x.tested ? "" : ", too few to tell") : "") + "</small>";
           }));
       });
       rows.push(["<b>" + (kk.length + 1) + ". The wind reverses</b><small>easterly at 60°N, 10\u00A0hPa: the event itself</small>", "–"].concat(km.map(function (m) {
@@ -768,7 +806,7 @@
     // the coupling clock, shown only while its start-day test passes
     var C = j.clock;
     if (C && C.reference.passes) {
-      document.getElementById("clock").hidden = false;
+      document.getElementById("card-clock").hidden = false;
       var CR = C.reference, CD = CR.definitions, ck = ens.filter(function (m) { return C.models[m]; });
       var P = ck.filter(function (m) { return C.models[m].wind != null; });
       if (!P.length) {
@@ -813,6 +851,32 @@
   }).catch(function () { document.getElementById("lede").textContent = "The summary did not load."; });
 })();
 </script>
+<script>
+// the views of the stage (assets/stage.js), in the order of the list: [id, name, the list's note, gated: the card's own
+// script shows it once its data is here, the guide's section when it is not #<id>]; each mounts the card card-<id>
+(function () {
+  var VIEWS = [
+    ["Days 1–15", [
+      ["ssw", "Is a sudden warming forecast?", "every ensemble, run by run"],
+      ["vortex", "The vortex, every model", "the wind, polar-cap height and temperature", false, "ssw"],
+      ["checklist", "What a sudden warming takes", "the ingredients past warmings had", true],
+      ["kind", "What kind of event", "wave-1 or wave-2, bottom-up or top-down"],
+      ["reflect", "Reflection or absorption", "the waves at the top of the vortex"],
+      ["surface", "Will it reach the troposphere?", "the surface pattern after day 15"],
+      ["clock", "When could it reach the surface?", "against the past warmings", true]]],
+    ["Weeks 3–5", [
+      ["weeks35", "Weeks 3–5 outlook", "every GEFS and GEPS member’s week", true]]]
+  ];
+  var products = {};
+  VIEWS.forEach(function (g) { g[1].forEach(function (v) { products[v[0]] = { label: v[1], dom: function () { return "card-" + v[0]; }, gated: !!v[3], about: "about-" + (v[4] || v[0]) }; }); });
+  window.STAGE = {
+    guide: "/guides/ssw.html",
+    groups: VIEWS.map(function (g) { return { label: g[0], items: g[1].map(function (v) { return v.slice(0, 3); }) }; }),
+    products: products
+  };
+})();
+</script>
+<script src="/assets/stage.js?v=0a9aae58c5" defer></script>
 
 <!-- sf:start -->
 <footer class="sf">
