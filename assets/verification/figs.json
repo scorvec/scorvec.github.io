@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-27 22:32 UTC",
+ "generated": "2026-11-28 15:37 UTC",
  "acc": {
   "NH_30": {
    "window": {
@@ -141,15 +141,15 @@
    "days 6-9"
   ],
   "window": {
-   "runs": 185,
+   "runs": 186,
    "first": "2026051300",
-   "last": "2026111300",
+   "last": "2026111400",
    "left_out": {},
    "own": {
     "GDPS": {
-     "runs": 69,
+     "runs": 70,
      "first": "2026090600",
-     "last": "2026111300"
+     "last": "2026111400"
     }
    }
   },
@@ -164,8 +164,8 @@
   "10": {
    "window": {
     "runs": 10,
-    "first": "2026110400",
-    "last": "2026111300",
+    "first": "2026110500",
+    "last": "2026111400",
     "left_out": {}
    },
    "models": [
@@ -196,8 +196,8 @@
   "30": {
    "window": {
     "runs": 30,
-    "first": "2026101500",
-    "last": "2026111300",
+    "first": "2026101600",
+    "last": "2026111400",
     "left_out": {}
    },
    "models": [
@@ -228,10 +228,10 @@
   "90": {
    "window": {
     "runs": 90,
-    "first": "2026081600",
-    "last": "2026111300",
+    "first": "2026081700",
+    "last": "2026111400",
     "left_out": {
-     "GDPS": 69
+     "GDPS": 70
     }
    },
    "models": [
@@ -267,23 +267,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_t2m_24_GFS.webp",
-       "mapped": 12452,
-       "significant": 8851
+       "mapped": 12456,
+       "significant": 8941
       },
       "IFS": {
        "file": "bias_single_t2m_24_IFS.webp",
-       "mapped": 12452,
-       "significant": 5695
+       "mapped": 12456,
+       "significant": 5628
       },
       "AIFS": {
        "file": "bias_single_t2m_24_AIFS.webp",
-       "mapped": 12452,
-       "significant": 6436
+       "mapped": 12456,
+       "significant": 6402
       },
       "GDPS": {
        "file": "bias_single_t2m_24_GDPS.webp",
-       "mapped": 12452,
-       "significant": 9147
+       "mapped": 12456,
+       "significant": 9143
       }
      }
     },
@@ -292,23 +292,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_t2m_72_GFS.webp",
-       "mapped": 12408,
-       "significant": 8332
+       "mapped": 12433,
+       "significant": 8378
       },
       "IFS": {
        "file": "bias_single_t2m_72_IFS.webp",
-       "mapped": 12408,
-       "significant": 5456
+       "mapped": 12433,
+       "significant": 5589
       },
       "AIFS": {
        "file": "bias_single_t2m_72_AIFS.webp",
-       "mapped": 12408,
-       "significant": 5411
+       "mapped": 12433,
+       "significant": 5472
       },
       "GDPS": {
        "file": "bias_single_t2m_72_GDPS.webp",
-       "mapped": 12408,
-       "significant": 8965
+       "mapped": 12433,
+       "significant": 9041
       }
      }
     },
@@ -317,23 +317,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_t2m_120_GFS.webp",
-       "mapped": 12415,
-       "significant": 7435
+       "mapped": 12386,
+       "significant": 7367
       },
       "IFS": {
        "file": "bias_single_t2m_120_IFS.webp",
-       "mapped": 12415,
-       "significant": 5048
+       "mapped": 12386,
+       "significant": 4777
       },
       "AIFS": {
        "file": "bias_single_t2m_120_AIFS.webp",
-       "mapped": 12415,
-       "significant": 4263
+       "mapped": 12386,
+       "significant": 4307
       },
       "GDPS": {
        "file": "bias_single_t2m_120_GDPS.webp",
-       "mapped": 12415,
-       "significant": 7831
+       "mapped": 12386,
+       "significant": 7864
       }
      }
     },
@@ -342,23 +342,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_t2m_168_GFS.webp",
-       "mapped": 12381,
-       "significant": 6230
+       "mapped": 12367,
+       "significant": 6137
       },
       "IFS": {
        "file": "bias_single_t2m_168_IFS.webp",
-       "mapped": 12381,
-       "significant": 3671
+       "mapped": 12367,
+       "significant": 3590
       },
       "AIFS": {
        "file": "bias_single_t2m_168_AIFS.webp",
-       "mapped": 12381,
-       "significant": 3119
+       "mapped": 12367,
+       "significant": 3131
       },
       "GDPS": {
        "file": "bias_single_t2m_168_GDPS.webp",
-       "mapped": 12381,
-       "significant": 6384
+       "mapped": 12367,
+       "significant": 6518
       }
      }
     },
@@ -367,23 +367,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_t2m_240_GFS.webp",
-       "mapped": 12367,
-       "significant": 5521
+       "mapped": 12361,
+       "significant": 5443
       },
       "IFS": {
        "file": "bias_single_t2m_240_IFS.webp",
-       "mapped": 12367,
-       "significant": 2156
+       "mapped": 12361,
+       "significant": 2170
       },
       "AIFS": {
        "file": "bias_single_t2m_240_AIFS.webp",
-       "mapped": 12367,
-       "significant": 1732
+       "mapped": 12361,
+       "significant": 1701
       },
       "GDPS": {
        "file": "bias_single_t2m_240_GDPS.webp",
-       "mapped": 12367,
-       "significant": 4986
+       "mapped": 12361,
+       "significant": 5023
       }
      }
     },
@@ -392,23 +392,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_td2m_24_GFS.webp",
-       "mapped": 12443,
-       "significant": 10807
+       "mapped": 12447,
+       "significant": 10819
       },
       "IFS": {
        "file": "bias_single_td2m_24_IFS.webp",
-       "mapped": 12443,
-       "significant": 6117
+       "mapped": 12447,
+       "significant": 6195
       },
       "AIFS": {
        "file": "bias_single_td2m_24_AIFS.webp",
-       "mapped": 12443,
-       "significant": 5998
+       "mapped": 12447,
+       "significant": 5890
       },
       "GDPS": {
        "file": "bias_single_td2m_24_GDPS.webp",
-       "mapped": 12443,
-       "significant": 9620
+       "mapped": 12447,
+       "significant": 9725
       }
      }
     },
@@ -417,23 +417,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_td2m_72_GFS.webp",
-       "mapped": 12409,
-       "significant": 10461
+       "mapped": 12432,
+       "significant": 10330
       },
       "IFS": {
        "file": "bias_single_td2m_72_IFS.webp",
-       "mapped": 12409,
-       "significant": 5300
+       "mapped": 12432,
+       "significant": 5422
       },
       "AIFS": {
        "file": "bias_single_td2m_72_AIFS.webp",
-       "mapped": 12409,
-       "significant": 4698
+       "mapped": 12432,
+       "significant": 4812
       },
       "GDPS": {
        "file": "bias_single_td2m_72_GDPS.webp",
-       "mapped": 12409,
-       "significant": 9109
+       "mapped": 12432,
+       "significant": 9191
       }
      }
     },
@@ -442,23 +442,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_td2m_120_GFS.webp",
-       "mapped": 12420,
-       "significant": 8767
+       "mapped": 12395,
+       "significant": 8706
       },
       "IFS": {
        "file": "bias_single_td2m_120_IFS.webp",
-       "mapped": 12420,
-       "significant": 3963
+       "mapped": 12395,
+       "significant": 3939
       },
       "AIFS": {
        "file": "bias_single_td2m_120_AIFS.webp",
-       "mapped": 12420,
-       "significant": 3372
+       "mapped": 12395,
+       "significant": 3487
       },
       "GDPS": {
        "file": "bias_single_td2m_120_GDPS.webp",
-       "mapped": 12420,
-       "significant": 7441
+       "mapped": 12395,
+       "significant": 7359
       }
      }
     },
@@ -467,23 +467,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_td2m_168_GFS.webp",
-       "mapped": 12390,
-       "significant": 6936
+       "mapped": 12370,
+       "significant": 6903
       },
       "IFS": {
        "file": "bias_single_td2m_168_IFS.webp",
-       "mapped": 12390,
-       "significant": 2978
+       "mapped": 12370,
+       "significant": 3004
       },
       "AIFS": {
        "file": "bias_single_td2m_168_AIFS.webp",
-       "mapped": 12390,
-       "significant": 2396
+       "mapped": 12370,
+       "significant": 2357
       },
       "GDPS": {
        "file": "bias_single_td2m_168_GDPS.webp",
-       "mapped": 12390,
-       "significant": 5466
+       "mapped": 12370,
+       "significant": 5701
       }
      }
     },
@@ -492,23 +492,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_td2m_240_GFS.webp",
-       "mapped": 12383,
-       "significant": 5763
+       "mapped": 12388,
+       "significant": 5701
       },
       "IFS": {
        "file": "bias_single_td2m_240_IFS.webp",
-       "mapped": 12383,
-       "significant": 2005
+       "mapped": 12388,
+       "significant": 1972
       },
       "AIFS": {
        "file": "bias_single_td2m_240_AIFS.webp",
-       "mapped": 12383,
-       "significant": 1567
+       "mapped": 12388,
+       "significant": 1583
       },
       "GDPS": {
        "file": "bias_single_td2m_240_GDPS.webp",
-       "mapped": 12383,
-       "significant": 4528
+       "mapped": 12388,
+       "significant": 4593
       }
      }
     },
@@ -517,23 +517,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_msl_24_GFS.webp",
-       "mapped": 7260,
-       "significant": 3239
+       "mapped": 7262,
+       "significant": 3309
       },
       "IFS": {
        "file": "bias_single_msl_24_IFS.webp",
-       "mapped": 7260,
-       "significant": 4762
+       "mapped": 7262,
+       "significant": 4822
       },
       "AIFS": {
        "file": "bias_single_msl_24_AIFS.webp",
-       "mapped": 7260,
-       "significant": 4096
+       "mapped": 7262,
+       "significant": 4012
       },
       "GDPS": {
        "file": "bias_single_msl_24_GDPS.webp",
-       "mapped": 7260,
-       "significant": 3824
+       "mapped": 7262,
+       "significant": 3802
       }
      }
     },
@@ -542,22 +542,22 @@
      "models": {
       "GFS": {
        "file": "bias_single_msl_72_GFS.webp",
-       "mapped": 7255,
-       "significant": 2363
+       "mapped": 7242,
+       "significant": 2499
       },
       "IFS": {
        "file": "bias_single_msl_72_IFS.webp",
-       "mapped": 7255,
-       "significant": 1903
+       "mapped": 7242,
+       "significant": 1855
       },
       "AIFS": {
        "file": "bias_single_msl_72_AIFS.webp",
-       "mapped": 7255,
-       "significant": 2834
+       "mapped": 7242,
+       "significant": 2883
       },
       "GDPS": {
        "file": "bias_single_msl_72_GDPS.webp",
-       "mapped": 7255,
+       "mapped": 7242,
        "significant": 2206
       }
      }
@@ -567,23 +567,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_msl_120_GFS.webp",
-       "mapped": 7240,
-       "significant": 1185
+       "mapped": 7208,
+       "significant": 1144
       },
       "IFS": {
        "file": "bias_single_msl_120_IFS.webp",
-       "mapped": 7240,
-       "significant": 1457
+       "mapped": 7208,
+       "significant": 1322
       },
       "AIFS": {
        "file": "bias_single_msl_120_AIFS.webp",
-       "mapped": 7240,
-       "significant": 2239
+       "mapped": 7208,
+       "significant": 2102
       },
       "GDPS": {
        "file": "bias_single_msl_120_GDPS.webp",
-       "mapped": 7240,
-       "significant": 1493
+       "mapped": 7208,
+       "significant": 1611
       }
      }
     },
@@ -593,22 +593,22 @@
       "GFS": {
        "file": "bias_single_msl_168_GFS.webp",
        "mapped": 7208,
-       "significant": 1411
+       "significant": 1427
       },
       "IFS": {
        "file": "bias_single_msl_168_IFS.webp",
        "mapped": 7208,
-       "significant": 635
+       "significant": 601
       },
       "AIFS": {
        "file": "bias_single_msl_168_AIFS.webp",
        "mapped": 7208,
-       "significant": 1337
+       "significant": 1351
       },
       "GDPS": {
        "file": "bias_single_msl_168_GDPS.webp",
        "mapped": 7208,
-       "significant": 699
+       "significant": 557
       }
      }
     },
@@ -617,23 +617,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_msl_240_GFS.webp",
-       "mapped": 7216,
-       "significant": 895
+       "mapped": 7214,
+       "significant": 914
       },
       "IFS": {
        "file": "bias_single_msl_240_IFS.webp",
-       "mapped": 7216,
-       "significant": 460
+       "mapped": 7214,
+       "significant": 533
       },
       "AIFS": {
        "file": "bias_single_msl_240_AIFS.webp",
-       "mapped": 7216,
-       "significant": 521
+       "mapped": 7214,
+       "significant": 463
       },
       "GDPS": {
        "file": "bias_single_msl_240_GDPS.webp",
-       "mapped": 7216,
-       "significant": 159
+       "mapped": 7214,
+       "significant": 131
       }
      }
     },
@@ -642,23 +642,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_wind10_24_GFS.webp",
-       "mapped": 9718,
-       "significant": 7067
+       "mapped": 9702,
+       "significant": 7048
       },
       "IFS": {
        "file": "bias_single_wind10_24_IFS.webp",
-       "mapped": 9718,
-       "significant": 6868
+       "mapped": 9702,
+       "significant": 6742
       },
       "AIFS": {
        "file": "bias_single_wind10_24_AIFS.webp",
-       "mapped": 9718,
-       "significant": 6939
+       "mapped": 9702,
+       "significant": 6828
       },
       "GDPS": {
        "file": "bias_single_wind10_24_GDPS.webp",
-       "mapped": 9718,
-       "significant": 7432
+       "mapped": 9702,
+       "significant": 7354
       }
      }
     },
@@ -667,23 +667,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_wind10_72_GFS.webp",
-       "mapped": 9668,
-       "significant": 6721
+       "mapped": 9663,
+       "significant": 6812
       },
       "IFS": {
        "file": "bias_single_wind10_72_IFS.webp",
-       "mapped": 9668,
-       "significant": 6138
+       "mapped": 9663,
+       "significant": 6179
       },
       "AIFS": {
        "file": "bias_single_wind10_72_AIFS.webp",
-       "mapped": 9668,
-       "significant": 6456
+       "mapped": 9663,
+       "significant": 6397
       },
       "GDPS": {
        "file": "bias_single_wind10_72_GDPS.webp",
-       "mapped": 9668,
-       "significant": 6956
+       "mapped": 9663,
+       "significant": 6991
       }
      }
     },
@@ -692,23 +692,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_wind10_120_GFS.webp",
-       "mapped": 9667,
-       "significant": 5600
+       "mapped": 9647,
+       "significant": 5623
       },
       "IFS": {
        "file": "bias_single_wind10_120_IFS.webp",
-       "mapped": 9667,
-       "significant": 5006
+       "mapped": 9647,
+       "significant": 5075
       },
       "AIFS": {
        "file": "bias_single_wind10_120_AIFS.webp",
-       "mapped": 9667,
-       "significant": 5829
+       "mapped": 9647,
+       "significant": 5778
       },
       "GDPS": {
        "file": "bias_single_wind10_120_GDPS.webp",
-       "mapped": 9667,
-       "significant": 5996
+       "mapped": 9647,
+       "significant": 6029
       }
      }
     },
@@ -717,23 +717,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_wind10_168_GFS.webp",
-       "mapped": 9616,
-       "significant": 4972
+       "mapped": 9607,
+       "significant": 5030
       },
       "IFS": {
        "file": "bias_single_wind10_168_IFS.webp",
-       "mapped": 9616,
-       "significant": 4269
+       "mapped": 9607,
+       "significant": 4187
       },
       "AIFS": {
        "file": "bias_single_wind10_168_AIFS.webp",
-       "mapped": 9616,
-       "significant": 4838
+       "mapped": 9607,
+       "significant": 4747
       },
       "GDPS": {
        "file": "bias_single_wind10_168_GDPS.webp",
-       "mapped": 9616,
-       "significant": 5076
+       "mapped": 9607,
+       "significant": 4991
       }
      }
     },
@@ -742,23 +742,23 @@
      "models": {
       "GFS": {
        "file": "bias_single_wind10_240_GFS.webp",
-       "mapped": 9598,
-       "significant": 4545
+       "mapped": 9576,
+       "significant": 4524
       },
       "IFS": {
        "file": "bias_single_wind10_240_IFS.webp",
-       "mapped": 9598,
-       "significant": 3516
+       "mapped": 9576,
+       "significant": 3628
       },
       "AIFS": {
        "file": "bias_single_wind10_240_AIFS.webp",
-       "mapped": 9598,
-       "significant": 4584
+       "mapped": 9576,
+       "significant": 4639
       },
       "GDPS": {
        "file": "bias_single_wind10_240_GDPS.webp",
-       "mapped": 9598,
-       "significant": 4019
+       "mapped": 9576,
+       "significant": 4077
       }
      }
     }
@@ -796,8 +796,8 @@
    ],
    "window": {
     "runs": 30,
-    "first": "2026101500",
-    "last": "2026111300",
+    "first": "2026101600",
+    "last": "2026111400",
     "left_out": {}
    }
   },
@@ -1429,8 +1429,8 @@
   "10": {
    "window": {
     "runs": 10,
-    "first": "2026110400",
-    "last": "2026111300",
+    "first": "2026110500",
+    "last": "2026111400",
     "left_out": {}
    },
    "models": [
@@ -1555,8 +1555,8 @@
   "30": {
    "window": {
     "runs": 30,
-    "first": "2026101500",
-    "last": "2026111300",
+    "first": "2026101600",
+    "last": "2026111400",
     "left_out": {}
    },
    "models": [
@@ -1681,10 +1681,10 @@
   "90": {
    "window": {
     "runs": 90,
-    "first": "2026081600",
-    "last": "2026111300",
+    "first": "2026081700",
+    "last": "2026111400",
     "left_out": {
-     "GDPS": 69
+     "GDPS": 70
     }
    },
    "models": [
@@ -2016,24 +2016,24 @@
  "database": {
   "models": {
    "AIFS": {
-    "runs": 185,
+    "runs": 186,
     "first": "2026051300",
-    "last": "2026111300"
+    "last": "2026111400"
    },
    "GDPS": {
-    "runs": 69,
+    "runs": 70,
     "first": "2026090600",
-    "last": "2026111300"
+    "last": "2026111400"
    },
    "GFS": {
-    "runs": 185,
+    "runs": 186,
     "first": "2026051300",
-    "last": "2026111300"
+    "last": "2026111400"
    },
    "IFS": {
-    "runs": 185,
+    "runs": 186,
     "first": "2026051300",
-    "last": "2026111300"
+    "last": "2026111400"
    }
   },
   "ensembles": {
